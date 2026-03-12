@@ -376,6 +376,42 @@ tr:hover td { background:var(--s2); }
 .live-dot { width:6px; height:6px; background:var(--green); border-radius:50%; animation:pulse 2s infinite; display:inline-block; }
 
 
+/* ── SAVE / CLOUD SYNC ── */
+.save-btn {
+  padding: 7px 16px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none; border-radius: 8px;
+  color: #fff; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  font-family: 'Noto Sans KR', sans-serif;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.save-btn:hover { opacity: 0.85; }
+.save-btn:active { transform: scale(0.97); }
+.save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.save-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; white-space: nowrap;
+}
+.save-status.ok    { color: var(--green); }
+.save-status.err   { color: var(--red); }
+.save-status.loading { color: var(--muted); }
+
+/* ── CLOUD BANNER ── */
+.cloud-banner {
+  display: none;
+  background: rgba(16,185,129,0.07);
+  border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-size: 12px; color: var(--green);
+  font-family: 'JetBrains Mono', monospace;
+  align-items: center; justify-content: space-between; gap:8px;
+}
+.cloud-banner.show { display: flex; }
+.cloud-banner-left { display:flex; align-items:center; gap:8px; }
+
 /* ── PASSWORD LOCK SCREEN ── */
 #lockScreen {
   position: fixed; inset: 0; z-index: 9999;
@@ -535,11 +571,26 @@ tr:hover td { background:var(--s2); }
   <div class="upload-panel">
     <div class="upload-panel-header">
       <div class="upload-panel-title">법인별 파일 업로드</div>
-      <div class="upload-hint">📅 매주 월~수 / 전주 금요일 기준 잔액</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="upload-hint">📅 매주 월~수 / 전주 금요일 기준 잔액</div>
+        <button class="save-btn" id="saveBtn" onclick="saveToCloud()" style="display:none">
+          ☁️ 저장 &amp; 공유
+        </button>
+        <div class="save-status" id="saveStatus"></div>
+      </div>
     </div>
     <div class="upload-grid" id="uploadGrid">
       <!-- Slots injected by JS -->
     </div>
+  </div>
+
+  <!-- Cloud sync banner -->
+  <div class="cloud-banner" id="cloudBanner">
+    <div class="cloud-banner-left">
+      <span>☁️</span>
+      <span id="cloudBannerText">최신 저장 데이터를 불러왔습니다</span>
+    </div>
+    <span id="cloudBannerDate" style="color:var(--muted)"></span>
   </div>
 
   <!-- Date alert -->
@@ -1479,9 +1530,138 @@ function toggleEye() {
 }
 
 // ═══════════════════════════════════════════
+// SUPABASE CLOUD SYNC
+// ═══════════════════════════════════════════
+const SUPABASE_URL = 'https://srhggbtdjigtagduruxx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNyaGdnYnRkamlndGFnZHVydXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMDAwNzEsImV4cCI6MjA4ODg3NjA3MX0.IYTQ5hH0EJgLaMS9pF_-ntjtNLcSbarDZaV6-J5V94k';
+const API = `${SUPABASE_URL}/rest/v1/cf_dashboard`;
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+};
+
+// ── 저장 ──────────────────────────────────
+async function saveToCloud() {
+  const loaded = Object.values(subData);
+  if (!loaded.length) return;
+
+  const btn = document.getElementById('saveBtn');
+  const status = document.getElementById('saveStatus');
+  btn.disabled = true;
+  btn.textContent = '저장 중...';
+  status.className = 'save-status loading';
+  status.textContent = '⏳ 서버에 저장 중...';
+
+  try {
+    // serialize (함수 제거, 직렬화 가능한 데이터만)
+    const payload = {};
+    for (const [id, d] of Object.entries(subData)) {
+      payload[id] = {
+        subId: d.subId, name: d.name, flag: d.flag,
+        currency: d.currency, fx: d.fx,
+        asOf: d.asOf, asOfDay: d.asOfDay,
+        year: d.year, month: d.month,
+        prevMonthBal: d.prevMonthBal,
+        balance: d.balance, balanceKRW: d.balanceKRW,
+        daily: d.daily, series: d.series, labels: d.labels,
+        filename: d.filename,
+        isBalanceDetails: d.isBalanceDetails || false,
+      };
+    }
+
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({ data: payload }),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    btn.textContent = '☁️ 저장 & 공유';
+    btn.disabled = false;
+    status.className = 'save-status ok';
+    status.textContent = '✅ 저장 완료! 임원들이 바로 볼 수 있습니다.';
+    setTimeout(() => status.textContent = '', 4000);
+
+    // 배너 업데이트
+    showCloudBanner('☁️ 방금 저장됨 — 임원들이 링크 접속 시 자동으로 보입니다', new Date().toLocaleString('ko-KR'));
+
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '☁️ 저장 & 공유';
+    status.className = 'save-status err';
+    status.textContent = '❌ 저장 실패: ' + e.message;
+  }
+}
+
+// ── 불러오기 ──────────────────────────────
+async function loadFromCloud() {
+  try {
+    const res = await fetch(
+      `${API}?select=*&order=saved_at.desc&limit=1`,
+      { headers: HEADERS }
+    );
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!rows.length || !rows[0].data) return;
+
+    const saved = rows[0].data;
+    const savedAt = new Date(rows[0].saved_at).toLocaleString('ko-KR');
+
+    // subData에 복원
+    for (const [id, d] of Object.entries(saved)) {
+      subData[id] = d;
+      // 슬롯 UI 업데이트
+      const sub = SUBSIDIARIES.find(s => s.id === id);
+      if (!sub) continue;
+      const slot = document.getElementById('slot-' + id);
+      const statusEl = document.getElementById('slot-status-' + id);
+      if (slot && statusEl) {
+        slot.classList.add('loaded');
+        statusEl.className = 'slot-status ok';
+        statusEl.textContent = `✓ ${fmtShort(d.balance)} ${d.currency}`;
+        let badge = slot.querySelector('.slot-date-badge');
+        if (!badge) { badge = document.createElement('div'); badge.className = 'slot-date-badge'; slot.appendChild(badge); }
+        badge.textContent = d.asOf;
+        let clr = slot.querySelector('.slot-clear');
+        if (clr) clr.remove();
+        const clearBtn = document.createElement('div');
+        clearBtn.className = 'slot-clear'; clearBtn.innerHTML = '✕'; clearBtn.title = '삭제';
+        clearBtn.onclick = ev => { ev.stopPropagation(); clearSlot(id); };
+        slot.appendChild(clearBtn);
+      }
+    }
+
+    renderAll();
+    showCloudBanner(`☁️ 최신 저장 데이터를 불러왔습니다`, savedAt);
+
+  } catch(e) {
+    console.log('Cloud load skipped:', e.message);
+  }
+}
+
+function showCloudBanner(text, dateStr) {
+  const banner = document.getElementById('cloudBanner');
+  document.getElementById('cloudBannerText').textContent = text;
+  document.getElementById('cloudBannerDate').textContent = dateStr + ' 저장';
+  banner.classList.add('show');
+}
+
+// renderAll 이후 저장 버튼 표시 여부 제어
+const _origRenderAll = renderAll;
+function renderAll() {
+  _origRenderAll();
+  const loaded = Object.values(subData);
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) saveBtn.style.display = loaded.length ? 'inline-block' : 'none';
+}
+
+// ═══════════════════════════════════════════
 // Init
 initSlots();
-loadSampleData(); // Pre-load demo data
+loadFromCloud(); // 클라우드에서 최신 데이터 자동 로드
+
 </script>
 </body>
 </html>

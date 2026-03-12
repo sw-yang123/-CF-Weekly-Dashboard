@@ -831,9 +831,17 @@ function processMultiFile(file) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
+      const wb = XLSX.read(e.target.result, {
+        type:'array',
+        cellDates: true,
+        sheetStubs: false,
+        cellNF: false,
+        cellStyles: false,
+        cellHTML: false,
+        WTF: false,
+      });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, range:0});
 
       // Extract report date (row 0, last col with value)
       let reportDate = null;
@@ -963,7 +971,15 @@ function clearSlot(subId) {
 // PARSE EXCEL
 // ═══════════════════════════════════════════
 function parseSubFile(buffer, sub, filename) {
-  const wb = XLSX.read(buffer, {type:'array', cellDates:true});
+  const wb = XLSX.read(buffer, {
+    type:'array',
+    cellDates: true,
+    sheetStubs: false,
+    cellNF: false,
+    cellStyles: false,
+    cellHTML: false,
+    WTF: false,
+  });
   // Try sheet names
   const sheetName = wb.SheetNames.find(n =>
     n.toLowerCase().includes('daily cash flow') ||
@@ -971,7 +987,8 @@ function parseSubFile(buffer, sub, filename) {
   ) || wb.SheetNames[0];
 
   const ws = wb.Sheets[sheetName];
-  const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+  // 필요한 행만 읽기 (row 0~41, 일별 데이터 포함 충분한 범위)
+  const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, range:{s:{r:0,c:0},e:{r:42,c:38}}});
 
   // Extract as-of date from filename first
   const fnMatch = filename.match(/(\d{8})/);
@@ -1071,6 +1088,8 @@ function renderAll() {
     ['kpiRow','subSection','chartPanel','tblWrap'].forEach(id => document.getElementById(id).style.display='none');
     document.getElementById('asofLegend').style.display='none';
     document.getElementById('weekBadge').textContent = '파일 업로드 대기 중';
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) saveBtn.style.display = 'none';
     return;
   }
 
@@ -1100,6 +1119,7 @@ function renderAll() {
   renderSubCards(loaded, latestDate);
   renderChart();
   renderTable(loaded, latestDate);
+  updateSaveBtn();
 }
 
 // ═══════════════════════════════════════════
@@ -1649,9 +1669,8 @@ function showCloudBanner(text, dateStr) {
 }
 
 // renderAll 이후 저장 버튼 표시 여부 제어
-const _origRenderAll = renderAll;
-function renderAll() {
-  _origRenderAll();
+// (renderAll 자체를 override하지 않고 별도 함수로 처리)
+function updateSaveBtn() {
   const loaded = Object.values(subData);
   const saveBtn = document.getElementById('saveBtn');
   if (saveBtn) saveBtn.style.display = loaded.length ? 'inline-block' : 'none';

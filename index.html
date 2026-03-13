@@ -1,0 +1,2577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>해외법인 Weekly Cash Balance Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07080c;
+  --s1: #0d0f16;
+  --s2: #13151f;
+  --s3: #191c28;
+  --border: #1f2235;
+  --border2: #2a2d42;
+  --accent: #3b82f6;
+  --accent2: #8b5cf6;
+  --cyan: #06b6d4;
+  --green: #10b981;
+  --red: #f43f5e;
+  --amber: #f59e0b;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --dim: #2d3350;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 0%, rgba(59,130,246,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 80% 100%, rgba(139,92,246,0.05) 0%, transparent 60%);
+  pointer-events:none; z-index:0;
+}
+
+/* ── HEADER ── */
+header {
+  position: sticky; top:0; z-index:200;
+  background: rgba(7,8,12,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 36px;
+  height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo { display:flex; align-items:center; gap:12px; }
+.logo-icon {
+  width:34px; height:34px; border-radius:8px;
+  background: linear-gradient(135deg,#3b82f6,#8b5cf6);
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px;
+}
+.logo-text { font-family:'Bebas Neue',cursive; font-size:20px; letter-spacing:2px; color:var(--accent); }
+.logo-sub { font-size:10px; color:var(--muted); letter-spacing:1px; margin-top:1px; }
+.header-right { display:flex; align-items:center; gap:16px; }
+.week-badge {
+  font-family:'JetBrains Mono',monospace; font-size:11px;
+  padding:5px 12px; border-radius:20px;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.25);
+  color: var(--accent);
+}
+.upload-status { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+
+/* ── LAYOUT ── */
+.page { position:relative; z-index:1; padding:28px 36px; max-width:1560px; margin:0 auto; }
+
+/* ── UPLOAD PANEL ── */
+.upload-panel {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius:14px;
+  padding:20px 24px;
+  margin-bottom:24px;
+}
+.upload-panel-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px;
+}
+.upload-panel-title {
+  font-size:13px; font-weight:600; color:var(--text);
+  display:flex; align-items:center; gap:8px;
+}
+.upload-panel-title::before {
+  content:''; width:3px; height:14px; border-radius:2px;
+  background: linear-gradient(var(--accent), var(--accent2));
+}
+.upload-hint {
+  font-size:11px; color:var(--muted);
+  font-family:'JetBrains Mono',monospace;
+}
+.upload-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap:10px;
+}
+.upload-slot {
+  border: 1.5px dashed var(--border2);
+  border-radius:10px;
+  padding:12px 14px;
+  cursor:pointer;
+  transition:all 0.2s;
+  min-height:72px;
+  display:flex; flex-direction:column; justify-content:center;
+  position:relative;
+  overflow:hidden;
+}
+.upload-slot:hover { border-color:var(--accent); background:rgba(59,130,246,0.04); }
+.upload-slot.loaded {
+  border-style:solid;
+  border-color: var(--green);
+  background: rgba(16,185,129,0.05);
+}
+.upload-slot.drag-over { border-color:var(--cyan); background:rgba(6,182,212,0.07); }
+.slot-header { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.slot-flag { font-size:18px; }
+.slot-name { font-size:13px; font-weight:600; color:var(--text); }
+.slot-currency { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--accent); }
+.slot-status { font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+.slot-status.ok { color:var(--green); }
+.slot-date-badge {
+  position:absolute; top:8px; right:8px;
+  font-family:'JetBrains Mono',monospace; font-size:9px;
+  padding:2px 6px; border-radius:4px;
+  background: rgba(16,185,129,0.15);
+  color:var(--green);
+  border: 1px solid rgba(16,185,129,0.3);
+}
+.slot-clear {
+  position:absolute; top:6px; right:6px;
+  width:16px; height:16px;
+  background: rgba(244,63,94,0.15);
+  border: 1px solid rgba(244,63,94,0.3);
+  border-radius:50%;
+  color:var(--red); font-size:9px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  z-index:10;
+}
+.upload-all-btn {
+  grid-column: 1 / -1;
+  padding:10px;
+  background: linear-gradient(135deg,rgba(59,130,246,0.15),rgba(139,92,246,0.15));
+  border: 1px solid rgba(59,130,246,0.3);
+  border-radius:8px;
+  color: var(--accent);
+  font-size:12px; font-family:'JetBrains Mono',monospace;
+  cursor:pointer; text-align:center;
+  transition:all 0.2s;
+}
+.upload-all-btn:hover { background:rgba(59,130,246,0.25); }
+input[type=file] { display:none; }
+
+/* ── DATE ALERT BAR ── */
+.date-alert {
+  display:none;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius:10px;
+  padding:10px 16px;
+  margin-bottom:16px;
+  font-size:12px; color:var(--amber);
+  font-family:'JetBrains Mono',monospace;
+  align-items:center; gap:8px;
+}
+.date-alert.show { display:flex; }
+
+/* ── AS-OF DATE LEGEND ── */
+.asof-legend {
+  display:flex; flex-wrap:wrap; gap:10px;
+  margin-bottom:20px;
+  padding:12px 16px;
+  background:var(--s1);
+  border:1px solid var(--border);
+  border-radius:10px;
+}
+.asof-item {
+  display:flex; align-items:center; gap:6px;
+  font-size:11px; font-family:'JetBrains Mono',monospace;
+}
+.asof-flag { font-size:14px; }
+.asof-label { color:var(--muted); }
+.asof-val { color:var(--text); font-weight:600; }
+.asof-val.stale { color:var(--amber); }
+.asof-val.fresh { color:var(--green); }
+
+/* ── KPI ROW ── */
+.kpi-row {
+  display:grid;
+  grid-template-columns: repeat(4,1fr);
+  gap:14px;
+  margin-bottom:20px;
+}
+.kpi {
+  background:var(--s1);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:18px 20px;
+  position:relative; overflow:hidden;
+  animation: fadeUp 0.4s ease both;
+}
+.kpi::after {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background: linear-gradient(90deg,var(--accent),var(--accent2));
+}
+.kpi-label { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.kpi-val { font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:600; line-height:1; }
+.kpi-sub { font-size:11px; color:var(--muted); margin-top:6px; font-family:'JetBrains Mono',monospace; }
+.kpi-delta { margin-top:10px; font-size:11px; font-family:'JetBrains Mono',monospace; display:flex; align-items:center; gap:4px; }
+.up{color:var(--green)} .down{color:var(--red)} .flat{color:var(--muted)}
+
+/* ── SECTION ── */
+.section-title {
+  font-family:'Bebas Neue',cursive; font-size:13px;
+  letter-spacing:3px; color:var(--muted);
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:14px;
+}
+.section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ── SUBSIDIARY CARDS ── */
+.sub-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
+  gap:14px;
+  margin-bottom:24px;
+}
+.sub-card {
+  background:var(--s1);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:18px;
+  cursor:pointer;
+  transition:all 0.2s;
+  animation: fadeUp 0.4s ease both;
+  position:relative; overflow:hidden;
+}
+.sub-card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:0 6px 24px rgba(59,130,246,0.1); }
+.sub-card.active { border-color:var(--accent); background:var(--s2); }
+.sub-card.pending { opacity:0.45; }
+.sub-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.sub-id { display:flex; align-items:center; gap:10px; }
+.sub-flag2 { font-size:26px; }
+.sub-name2 { font-size:14px; font-weight:700; }
+.sub-country2 { font-size:11px; color:var(--muted); }
+.sub-cur { font-family:'JetBrains Mono',monospace; font-size:11px; padding:3px 8px; background:var(--s2); border:1px solid var(--border2); border-radius:4px; color:var(--cyan); }
+.sub-bal { margin-bottom:10px; }
+.sub-bal-local { font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:600; }
+.sub-bal-krw { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); margin-top:3px; }
+.sub-chip {
+  display:inline-flex; align-items:center; gap:5px;
+  font-family:'JetBrains Mono',monospace; font-size:11px;
+  padding:4px 9px; border-radius:6px;
+}
+.chip-up { background:rgba(16,185,129,0.1); color:var(--green); }
+.chip-down { background:rgba(244,63,94,0.1); color:var(--red); }
+.chip-flat { background:rgba(100,116,139,0.1); color:var(--muted); }
+
+/* Date tag on card */
+.card-date-tag {
+  position:absolute; bottom:12px; right:14px;
+  font-family:'JetBrains Mono',monospace; font-size:9px;
+  padding:2px 7px; border-radius:4px;
+  border:1px solid var(--border2);
+  color:var(--muted);
+}
+.card-date-tag.stale { color:var(--amber); border-color:rgba(245,158,11,0.3); background:rgba(245,158,11,0.05); }
+.card-date-tag.fresh { color:var(--green); border-color:rgba(16,185,129,0.3); background:rgba(16,185,129,0.05); }
+
+.pending-overlay {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:rgba(7,8,12,0.6); backdrop-filter:blur(2px);
+  border-radius:12px;
+  gap:6px;
+}
+.pending-overlay .p-icon { font-size:24px; opacity:0.5; }
+.pending-overlay .p-text { font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+
+.sparkline-wrap { margin-top:12px; height:36px; }
+.sparkline { width:100%; height:100%; }
+
+/* ── CHART PANEL ── */
+.chart-panel {
+  background:var(--s1);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:22px 24px;
+  margin-bottom:24px;
+}
+.chart-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.chart-title { font-size:13px; font-weight:600; }
+.chart-controls { display:flex; gap:6px; align-items:center; }
+.ctrl-btn {
+  font-family:'JetBrains Mono',monospace; font-size:10px;
+  padding:4px 10px; border-radius:5px;
+  border:1px solid var(--border2);
+  background:transparent; color:var(--muted);
+  cursor:pointer; transition:all 0.15s;
+}
+.ctrl-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+.ctrl-sep { width:1px; height:16px; background:var(--border2); }
+canvas#chart { width:100%; height:260px; display:block; }
+
+/* ── TABLE ── */
+.tbl-wrap {
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden;
+  margin-bottom:24px;
+}
+.tbl-head {
+  padding:14px 20px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  font-size:13px; font-weight:600;
+}
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th {
+  padding:9px 18px; text-align:left;
+  font-family:'JetBrains Mono',monospace; font-size:9px;
+  letter-spacing:1.5px; color:var(--muted); text-transform:uppercase;
+  border-bottom:1px solid var(--border); font-weight:400;
+}
+td { padding:11px 18px; border-bottom:1px solid rgba(31,34,53,0.6); }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:var(--s2); }
+.tr-total td { background:rgba(59,130,246,0.04); color:var(--accent); font-weight:600; border-top:1px solid var(--border); }
+.cell-flag-name { display:flex; align-items:center; gap:8px; }
+.cell-mono { font-family:'JetBrains Mono',monospace; }
+.cell-right { text-align:right; }
+.bar-row { display:flex; align-items:center; gap:6px; }
+.bar-bg { flex:1; height:3px; background:var(--border2); border-radius:2px; overflow:hidden; }
+.bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; }
+.cell-asof { font-family:'JetBrains Mono',monospace; font-size:10px; }
+.asof-fresh2 { color:var(--green); }
+.asof-stale2 { color:var(--amber); }
+.asof-none { color:var(--dim); }
+
+/* ── FX STRIP ── */
+.fx-strip {
+  background:var(--s2); border:1px solid var(--border);
+  border-radius:8px; padding:10px 16px;
+  display:flex; align-items:center; gap:0;
+  margin-bottom:20px; flex-wrap:wrap; row-gap:8px;
+}
+.fx-lbl { font-size:9px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; font-family:'JetBrains Mono',monospace; white-space:nowrap; margin-right:16px; }
+.fx-item2 {
+  display:flex; align-items:center; gap:5px; white-space:nowrap;
+  padding:0 14px;
+  border-right:1px solid var(--border);
+}
+.fx-item2:last-child { border-right:none; }
+.fx-pair2 { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); }
+.fx-v2 { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align:center; padding:60px 20px;
+  display:none;
+}
+.empty-state.show { display:block; }
+.empty-state h3 { font-size:16px; color:var(--muted); font-weight:400; margin-bottom:8px; }
+.empty-state p { font-size:12px; color:var(--dim); }
+
+/* ── ANIM ── */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.live-dot { width:6px; height:6px; background:var(--green); border-radius:50%; animation:pulse 2s infinite; display:inline-block; }
+
+
+/* ── SAVE / CLOUD SYNC ── */
+.save-btn {
+  padding: 7px 16px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none; border-radius: 8px;
+  color: #fff; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  font-family: 'Noto Sans KR', sans-serif;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.save-btn:hover { opacity: 0.85; }
+.save-btn:active { transform: scale(0.97); }
+.save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.save-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; white-space: nowrap;
+}
+.save-status.ok    { color: var(--green); }
+.save-status.err   { color: var(--red); }
+.save-status.loading { color: var(--muted); }
+
+/* ── CLOUD BANNER ── */
+.cloud-banner {
+  display: none;
+  background: rgba(16,185,129,0.07);
+  border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-size: 12px; color: var(--green);
+  font-family: 'JetBrains Mono', monospace;
+  align-items: center; justify-content: space-between; gap:8px;
+}
+.cloud-banner.show { display: flex; }
+.cloud-banner-left { display:flex; align-items:center; gap:8px; }
+
+/* ── TABS ── */
+.tab-bar {
+  display: flex; gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px; padding: 0 4px;
+}
+.tab-btn {
+  padding: 10px 22px; background: none; border: none;
+  color: var(--muted); font-size: 13px; font-weight: 600;
+  font-family: 'Noto Sans KR', sans-serif;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: all 0.2s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── 25년 월별 입력 ── */
+.hist-panel { background: var(--s1); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+.hist-panel-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.hist-table-wrap { overflow-x: auto; }
+.hist-table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+.hist-table th { background: var(--s2); color: var(--muted); padding: 7px 10px; text-align: center; border: 1px solid var(--border); white-space: nowrap; }
+.hist-table td { border: 1px solid var(--border); padding: 4px 6px; }
+.hist-table td:first-child { background: var(--s2); color: var(--muted); font-weight: 600; text-align: center; white-space: nowrap; }
+.hist-input { width: 100%; background: transparent; border: none; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px; text-align: right; padding: 2px 4px; outline: none; }
+.hist-input:focus { background: var(--s3); border-radius: 4px; }
+.hist-save-btn { padding: 8px 18px; background: var(--accent); border: none; border-radius: 8px; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; margin-top: 12px; }
+.hist-save-btn:hover { opacity: 0.85; }
+
+/* ── 트렌드 차트 ── */
+.trend-panel { background: var(--s1); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+.trend-panel-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.trend-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.trend-btn { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: none; color: var(--muted); font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
+.trend-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+
+/* ── FX PASTE MODAL (SMBS 월평균 매매기준율) ── */
+.modal-backdrop{
+  position:fixed; inset:0; z-index:9000;
+  background:rgba(0,0,0,0.55);
+  display:none;
+  align-items:center; justify-content:center;
+  padding:24px;
+}
+.modal-backdrop.show{display:flex;}
+.modal{
+  width:min(900px, 96vw);
+  background:var(--s1);
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:0 32px 80px rgba(0,0,0,0.65);
+  overflow:hidden;
+}
+.modal-hd{
+  padding:14px 18px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.modal-title{font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px;}
+.modal-body{padding:14px 18px;}
+.modal-body p{font-size:12px; color:var(--muted); line-height:1.55; margin-bottom:10px;}
+.modal-body code{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--cyan);}
+.modal-ta{
+  width:100%;
+  height:260px;
+  resize:vertical;
+  background:var(--s2);
+  color:var(--text);
+  border:1px solid var(--border2);
+  border-radius:12px;
+  padding:12px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  outline:none;
+}
+.modal-ft{
+  padding:12px 18px;
+  border-top:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+}
+.modal-actions{display:flex; gap:8px; flex-wrap:wrap;}
+.btn-secondary{
+  padding:7px 14px;
+  background:transparent;
+  border:1px solid var(--border2);
+  border-radius:8px;
+  color:var(--text);
+  font-size:12px; font-weight:600;
+  cursor:pointer;
+}
+.btn-secondary:hover{border-color:var(--accent);}
+.btn-danger{
+  padding:7px 14px;
+  background:rgba(244,63,94,0.15);
+  border:1px solid rgba(244,63,94,0.35);
+  border-radius:8px;
+  color:var(--red);
+  font-size:12px; font-weight:700;
+  cursor:pointer;
+}
+.btn-danger:hover{opacity:0.9;}
+.modal-status{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted);}
+.modal-status.ok{color:var(--green);} 
+.modal-status.err{color:var(--red);} 
+
+/* ── PASSWORD LOCK SCREEN ── */
+#lockScreen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+#lockScreen::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 30% 20%, rgba(59,130,246,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 70% 80%, rgba(139,92,246,0.07) 0%, transparent 60%);
+  pointer-events:none;
+}
+.lock-box {
+  position: relative; z-index: 1;
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 44px;
+  width: 380px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  animation: fadeUp 0.5s ease;
+}
+.lock-logo {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 32px;
+}
+.lock-logo-icon {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: linear-gradient(135deg,#3b82f6,#8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.lock-logo-text { font-family:'Bebas Neue',cursive; font-size: 22px; letter-spacing: 2px; color: var(--accent); }
+.lock-logo-sub { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+.lock-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.lock-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+.lock-input-wrap { position: relative; margin-bottom: 14px; }
+.lock-input {
+  width: 100%;
+  background: var(--s2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 13px 44px 13px 16px;
+  color: var(--text);
+  font-size: 15px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 3px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.lock-input:focus { border-color: var(--accent); }
+.lock-input.error { border-color: var(--red); animation: shake 0.4s ease; }
+.lock-eye {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  cursor: pointer; color: var(--muted); font-size: 16px;
+  user-select: none; transition: color 0.15s;
+}
+.lock-eye:hover { color: var(--text); }
+.lock-btn {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border: none; border-radius: 10px;
+  color: #fff; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+  font-family: 'Noto Sans KR', sans-serif;
+  letter-spacing: 1px;
+}
+.lock-btn:hover { opacity: 0.9; }
+.lock-btn:active { transform: scale(0.98); }
+.lock-error {
+  color: var(--red); font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 10px; text-align: center;
+  min-height: 18px; transition: opacity 0.2s;
+}
+.lock-footer {
+  margin-top: 28px; padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 11px; color: var(--dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+.lock-attempts {
+  margin-top: 8px; font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--muted); text-align: center;
+}
+
+@keyframes shake {
+  0%,100%{ transform:translateX(0) }
+  20%{ transform:translateX(-8px) }
+  40%{ transform:translateX(8px) }
+  60%{ transform:translateX(-5px) }
+  80%{ transform:translateX(5px) }
+}
+
+  header { padding:0 16px; }
+  .page { padding:16px; }
+  .kpi-row { grid-template-columns:repeat(2,1fr); }
+  .upload-grid { grid-template-columns:repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOCK SCREEN ── -->
+<div id="lockScreen">
+  <div class="lock-box">
+    <div class="lock-logo">
+      <div class="lock-logo-icon">💹</div>
+      <div>
+        <div class="lock-logo-text">CF Dashboard</div>
+        <div class="lock-logo-sub">해외법인 주간 잔액 현황</div>
+      </div>
+    </div>
+    <div class="lock-title">🔒 접근 제한</div>
+    <div class="lock-sub">이 대시보드는 사내 임직원 전용입니다.<br>비밀번호를 입력하세요.</div>
+    <div class="lock-input-wrap">
+      <input
+        class="lock-input"
+        id="pwInput"
+        type="password"
+        placeholder="비밀번호 입력"
+        onkeydown="if(event.key==='Enter') tryUnlock()"
+        autocomplete="off"
+      />
+      <span class="lock-eye" id="eyeBtn" onclick="toggleEye()">👁</span>
+    </div>
+    <div class="lock-error" id="lockError"></div>
+    <button class="lock-btn" onclick="tryUnlock()">입력</button>
+    <div class="lock-attempts" id="lockAttempts"></div>
+    <div class="lock-footer">문의: 경영기획팀</div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">💹</div>
+    <div>
+      <div class="logo-text">Weekly Cash Dashboard</div>
+      <div class="logo-sub">해외법인 주간 잔액 현황</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="week-badge" id="weekBadge">파일 업로드 대기 중</div>
+    <span class="live-dot"></span>
+    <span class="upload-status" id="loadedCount">0 / 6 법인 로드됨</span>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('tab26')">📊 26년 주별</button>
+    <button class="tab-btn" onclick="switchTab('tab25')">📅 25년 월별</button>
+  </div>
+
+  <!-- ════ TAB: 26년 주별 ════ -->
+  <div class="tab-panel active" id="tab26">
+
+  <!-- Upload Panel -->
+  <div class="upload-panel">
+    <div class="upload-panel-header">
+      <div class="upload-panel-title">법인별 파일 업로드</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="upload-hint">📅 매주 월~수 / 전주 금요일 기준 잔액</div>
+        <button class="save-btn" id="saveBtn" onclick="saveToCloud()" style="display:none">
+          ☁️ 저장 &amp; 공유
+        </button>
+        <div class="save-status" id="saveStatus"></div>
+      </div>
+    </div>
+    <div class="upload-grid" id="uploadGrid">
+      <!-- Slots injected by JS -->
+    </div>
+  </div>
+
+  <!-- Cloud sync banner -->
+  <div class="cloud-banner" id="cloudBanner">
+    <div class="cloud-banner-left">
+      <span>☁️</span>
+      <span id="cloudBannerText">최신 저장 데이터를 불러왔습니다</span>
+    </div>
+    <span id="cloudBannerDate" style="color:var(--muted)"></span>
+  </div>
+
+  <!-- Date alert -->
+  <div class="date-alert" id="dateAlert">
+    ⚠️ <span id="dateAlertText"></span>
+  </div>
+
+  <!-- As-of date legend -->
+  <div class="asof-legend" id="asofLegend" style="display:none"></div>
+
+  <div class="fx-strip" id="fxStrip">
+    <div class="fx-lbl">FX RATE</div>
+    <div class="fx-item2"><span class="fx-pair2">USD/KRW</span><span class="fx-v2">1,449.32</span></div>
+    <div class="fx-item2"><span class="fx-pair2">JPY/KRW</span><span class="fx-v2">9.3263</span></div>
+    <div class="fx-item2"><span class="fx-pair2">CNY/KRW</span><span class="fx-v2">209.73</span></div>
+    <div class="fx-item2"><span class="fx-pair2">EUR/KRW</span><span class="fx-v2">1,713.05</span></div>
+    <div class="fx-item2"><span class="fx-pair2">SGD/KRW</span><span class="fx-v2">1,143.14</span></div>
+    <div class="fx-item2"><span class="fx-pair2">MYR/KRW</span><span class="fx-v2">370.00</span></div>
+    <div class="fx-item2"><span class="fx-pair2">BRL/KRW</span><span class="fx-v2">278.46</span></div>
+    <div class="fx-item2"><span class="fx-pair2">INR/KRW</span><span class="fx-v2">15.96</span></div>
+    <div class="fx-item2"><span class="fx-pair2">RUB/KRW</span><span class="fx-v2">18.86</span></div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="emptyState">
+    <div style="font-size:48px;margin-bottom:16px">📂</div>
+    <h3>아직 업로드된 파일이 없습니다</h3>
+    <p>위의 슬롯에 각 법인의 Excel 파일을 드래그하거나 클릭하여 업로드하세요.</p>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="kpi-row" id="kpiRow" style="display:none"></div>
+
+  <!-- Sub cards -->
+  <div class="section-title" id="subSection" style="display:none">법인별 잔액 현황</div>
+  <div class="sub-grid" id="subGrid"></div>
+
+
+  <!-- Charts (bar+donut) injected by JS -->
+  <div id="charts26Wrap" style="display:none;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px"></div>
+
+  <!-- Table -->
+  <div class="tbl-wrap" id="tblWrap" style="display:none">
+    <div class="tbl-head">
+      <span>법인별 잔액 비교 요약</span>
+      <span style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace" id="tblDate"></span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>법인</th>
+          <th>통화</th>
+          <th class="cell-right">전월말 잔액</th>
+          <th class="cell-right">현재 잔액</th>
+          <th class="cell-right">KRW 환산</th>
+          <th class="cell-right">전월 대비</th>
+          <th>비중</th>
+          <th>기준일자</th>
+        </tr>
+      </thead>
+      <tbody id="tblBody"></tbody>
+    </table>
+  </div>
+
+</div><!-- /tab26 -->
+
+  <!-- ════ TAB: 25년 월별 ════ -->
+  <div class="tab-panel" id="tab25">
+
+  <!-- Upload Panel -->
+  <div class="upload-panel">
+    <div class="upload-panel-header">
+      <div class="upload-panel-title">2025년 연간 Total 파일 업로드</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="upload-hint">📅 Balance Details 시트 기준 / 1~12월 월말 잔액 자동 추출</div>
+        <button class="save-btn" onclick="saveHistData()">☁️ 저장 &amp; 공유</button>
+        <div class="save-status" id="histSaveStatus"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 0 4px">
+      <label class="save-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+        📁 파일 선택
+        <input type="file" accept=".xlsx" multiple style="display:none" onchange="handleTotalFiles(event)">
+      </label>
+      <span id="hist25UploadStatus" style="font-size:11px;color:var(--green)"></span>
+    </div>
+  </div>
+
+  <!-- FX Strip ((SMBS) 선택월 평균환율) -->
+  <div class="fx-strip" id="hist25FxStrip">
+    <div class="fx-lbl">FX RATE<br><span style="font-size:8px;font-weight:400;color:var(--dim)">(SMBS) 선택월 평균</span></div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="hist25EmptyState">
+    <div style="font-size:48px;margin-bottom:16px">📂</div>
+    <h3>아직 업로드된 파일이 없습니다</h3>
+    <p>위의 파일 선택 버튼으로 Total 파일을 업로드하세요.</p>
+  </div>
+
+  <!-- Month selector -->
+  <div id="hist25MonthSelector" style="display:none;padding:4px 0 8px;display:none">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">기준월 선택</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" id="hist25MonthBtns"></div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="kpi-row" id="hist25KpiRow" style="display:none"></div>
+
+  <!-- Sub cards -->
+  <div class="section-title" id="hist25SubSection" style="display:none">법인별 잔액 현황</div>
+  <div class="sub-grid" id="hist25SubGrid"></div>
+
+
+  <!-- Charts (bar+donut) injected by JS -->
+  <div id="charts25Wrap" style="display:none;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px"></div>
+
+  <!-- Table -->
+  <div class="tbl-wrap" id="hist25TblWrap" style="display:none">
+    <div class="tbl-head">
+      <span>법인별 잔액 비교 요약</span>
+      <span style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace" id="hist25TblDate"></span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>법인</th>
+          <th>통화</th>
+          <th class="cell-right">전월말 잔액</th>
+          <th class="cell-right">월말 잔액</th>
+          <th class="cell-right">KRW 환산</th>
+          <th class="cell-right">전월 대비</th>
+          <th>비중</th>
+          <th>기준월</th>
+        </tr>
+      </thead>
+      <tbody id="hist25TblBody"></tbody>
+    </table>
+  </div>
+
+  </div><!-- /tab25 -->
+
+
+
+<!-- FX Paste Modal (SMBS 월평균 매매기준율) -->
+<div class="modal-backdrop" id="fxModal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-hd">
+      <div class="modal-title">📌 2025년 월평균 매매기준율 붙여넣기 <span style="font-size:11px;color:var(--muted);font-weight:600">(서울외국환중개)</span></div>
+      <button class="btn-danger" onclick="closeFxModal()">닫기</button>
+    </div>
+    <div class="modal-body">
+      <p>
+        1) <code>서울외국환중개 → 환율조회 → 월평균 매매기준율</code>에서 통화/기간을 <code>2025.01 ~ 2025.12</code>로 조회한 뒤,<br/>
+        2) 결과 표(행)를 드래그해서 복사(Ctrl+C) 후 아래에 붙여넣기(Ctrl+V) 하세요.<br/>
+        여러 통화를 <b>연속으로</b> 붙여넣어도 됩니다. (USD/EUR/JPY(100)/CNY(CNH)/SGD/MYR/BRL/INR/RUB)
+      </p>
+      <textarea class="modal-ta" id="fxPaste" placeholder="예시 (복사해 온 표의 텍스트를 그대로 붙여넣기)\n2025. 01\t미국 달러 (USD)\t1,234.56\n2025. 02\t미국 달러 (USD)\t1,210.34\n...\n2025. 01\t일본 엔 (JPY) (100)\t912.34\n..."></textarea>
+    </div>
+    <div class="modal-ft">
+      <div class="modal-status" id="fxModalStatus">※ 붙여넣은 뒤 <b>적용</b>을 누르면 25년 월별 탭 전체(KPI/카드/차트/표/FX strip)에 즉시 반영됩니다.</div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="fillFxSample()">샘플 채우기</button>
+        <button class="btn-secondary" onclick="clearFxPaste()">지우기</button>
+        <button class="save-btn" onclick="importFxFromPaste()">✅ 적용 & 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /page -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+const SUBSIDIARIES = [
+  { id:'japan',     name:'일본',     nameEn:'Japan',     flag:'🇯🇵', currency:'JPY', fx:9.3263  },
+  { id:'china',     name:'중국',     nameEn:'China',     flag:'🇨🇳', currency:'CNY', fx:209.73  },
+  { id:'singapore', name:'싱가포르', nameEn:'Singapore', flag:'🇸🇬', currency:'SGD', fx:1143.14 },
+  { id:'malaysia',  name:'말레이지아',nameEn:'Malaysia',  flag:'🇲🇾', currency:'MYR', fx:370.0   },
+  { id:'us',        name:'미국',     nameEn:'US',        flag:'🇺🇸', currency:'USD', fx:1449.32 },
+  { id:'france',    name:'프랑스',   nameEn:'France',    flag:'🇫🇷', currency:'EUR', fx:1713.05 },
+  { id:'brazil',    name:'브라질',   nameEn:'Brazil',    flag:'🇧🇷', currency:'BRL', fx:278.46  },
+  { id:'india',     name:'인도',     nameEn:'India',     flag:'🇮🇳', currency:'INR', fx:15.96   },
+  { id:'russia',    name:'러시아',   nameEn:'Russia',    flag:'🇷🇺', currency:'RUB', fx:18.86   },
+];
+
+// Name matching keywords for auto-detect
+const NAME_KEYS = {
+  japan:['japan','일본','jap'],
+  china:['china','중국','chn'],
+  singapore:['singapore','싱가포르','sing','sgp'],
+  malaysia:['malaysia','말레이','mys','malay'],
+  us:['_us_','_us.','us_','usa','미국','united states'],
+  france:['france','프랑스','fra'],
+  brazil:['brazil','브라질','bra','brasil'],
+  india:['india','인도','ind','_in_'],
+  russia:['russia','러시아','rus','_ru_'],
+  // combined file keyword → triggers multi-parse
+  _multi_:['프랑스fr','인도in','러시아ru','france.*india','fr.*in.*ru','balancedetail','balance_detail'],
+};
+
+const COLORS = ['#3b82f6','#06b6d4','#10b981','#f59e0b','#8b5cf6','#f43f5e','#fb923c','#e879f9','#94a3b8'];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let subData = {}; // id -> parsed data
+let chartMode = 'local';
+let selectedSub = null;
+
+// ═══════════════════════════════════════════
+// INIT UPLOAD SLOTS
+// ═══════════════════════════════════════════
+function initSlots() {
+  const grid = document.getElementById('uploadGrid');
+  grid.innerHTML = '';
+
+  SUBSIDIARIES.forEach(sub => {
+    const slot = document.createElement('div');
+    slot.className = 'upload-slot';
+    slot.id = 'slot-' + sub.id;
+    slot.setAttribute('data-id', sub.id);
+    slot.innerHTML = `
+      <div class="slot-header">
+        <span class="slot-flag">${sub.flag}</span>
+        <div>
+          <div class="slot-name">${sub.name}</div>
+          <div class="slot-currency">${sub.currency}</div>
+        </div>
+      </div>
+      <div class="slot-status" id="slot-status-${sub.id}">클릭 또는 드래그하여 업로드</div>
+      <input type="file" id="file-${sub.id}" accept=".xlsx" onchange="handleSlotFile(event,'${sub.id}')">
+    `;
+    slot.addEventListener('click', () => document.getElementById('file-' + sub.id).click());
+    slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+    slot.addEventListener('drop', e => {
+      e.preventDefault(); slot.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) autoDetectAndProcess(file);
+    });
+    grid.appendChild(slot);
+  });
+
+  // Batch upload button
+  const batchBtn = document.createElement('button');
+  batchBtn.className = 'upload-all-btn';
+  batchBtn.innerHTML = '⬆ 여러 파일 한번에 업로드 (자동 법인 인식)';
+  batchBtn.onclick = () => {
+    const inp = document.createElement('input');
+    inp.type='file'; inp.accept='.xlsx'; inp.multiple=true;
+    inp.onchange = e => {
+      Array.from(e.target.files).forEach(f => autoDetectAndProcess(f));
+    };
+    inp.click();
+  };
+  grid.appendChild(batchBtn);
+}
+
+// ═══════════════════════════════════════════
+// FILE HANDLING
+// ═══════════════════════════════════════════
+function handleSlotFile(event, subId) {
+  const file = event.target.files[0];
+  if (file) autoDetectAndProcess(file);
+}
+
+function autoDetectAndProcess(file) {
+  const fname = file.name.toLowerCase();
+
+  // Check if it's a combined multi-country file (e.g. 프랑스FR_인도IN_러시아RU)
+  const multiKeys = NAME_KEYS['_multi_'] || [];
+  const isMultiByName = multiKeys.some(k => new RegExp(k).test(fname));
+
+  // Also detect by checking if filename contains 2+ country codes (FR, IN, RU, etc.)
+  const countryCodes = ['fr','in','ru','jp','cn','sg','my','us','br'];
+  const matchedCodes = countryCodes.filter(c => new RegExp(`[_\\-\\s]?${c}[_\\-\\s]?`, 'i').test(fname));
+  const isMultiByCode = matchedCodes.length >= 2;
+
+  if (isMultiByName || isMultiByCode) { processMultiFile(file); return; }
+
+  let matched = null;
+  for (const [id, keys] of Object.entries(NAME_KEYS)) {
+    if (id === '_multi_') continue;
+    if (keys.some(k => fname.includes(k))) { matched = id; break; }
+  }
+  if (matched) processFile(file, matched);
+  else {
+    const names = SUBSIDIARIES.map((s,i)=>`${i+1}. ${s.flag} ${s.name}`).join('\n');
+    const choice = prompt(`"${file.name}" 파일의 법인을 선택하세요:\n${names}\n번호를 입력하세요:`);
+    const idx = parseInt(choice) - 1;
+    if (idx >= 0 && idx < SUBSIDIARIES.length) processFile(file, SUBSIDIARIES[idx].id);
+  }
+}
+
+function processFile(file, subId) {
+  const sub = SUBSIDIARIES.find(s => s.id === subId);
+  const slot = document.getElementById('slot-' + subId);
+  const statusEl = document.getElementById('slot-status-' + subId);
+  statusEl.textContent = '파싱 중...';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = parseSubFile(e.target.result, sub, file.name);
+      subData[subId] = data;
+      // Update slot UI
+      slot.classList.add('loaded');
+      statusEl.className = 'slot-status ok';
+      statusEl.textContent = `✓ ${fmtLocal(data.balance)} ${sub.currency}`;
+      // Add date badge
+      let badge = slot.querySelector('.slot-date-badge');
+      if (!badge) { badge = document.createElement('div'); badge.className='slot-date-badge'; slot.appendChild(badge); }
+      badge.textContent = data.asOf;
+      // Remove clear if exists, re-add
+      let clr = slot.querySelector('.slot-clear');
+      if(clr) clr.remove();
+      const clearBtn = document.createElement('div');
+      clearBtn.className='slot-clear';
+      clearBtn.innerHTML='✕';
+      clearBtn.title='삭제';
+      clearBtn.onclick = ev => { ev.stopPropagation(); clearSlot(subId); };
+      slot.appendChild(clearBtn);
+      renderAll();
+      // 26년 평균 FX 자동 조회
+      const asOf = subData[subId]?.asOf;
+      if (asOf) fetchAvgFX(asOf).catch(()=>{});
+    } catch(err) {
+      statusEl.className = 'slot-status';
+      statusEl.textContent = '❌ 오류: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── MULTI-COUNTRY FILE (Balance Details format) ──────────────────
+// Handles combined files like 프랑스FR_인도IN_러시아RU_260310.xlsx
+// Format: Row 0 = date in col 6, Row 1 = headers, Rows 2+ = Country/Bank/Currency/Balance
+function processMultiFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {
+        type:'array',
+        cellDates: true,
+        sheetStubs: false,
+        cellNF: false,
+        cellStyles: false,
+        cellHTML: false,
+        WTF: false,
+      });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+
+      // Extract report date (row 0, last col with value)
+      let reportDate = null;
+      const dateRow = raw[0] || [];
+      for (let c = dateRow.length-1; c >= 0; c--) {
+        if (dateRow[c]) {
+          const v = dateRow[c];
+          if (v instanceof Date) reportDate = v.toISOString().slice(0,10);
+          else {
+            const m = String(v).match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+            if (m) reportDate = `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+          }
+          if (reportDate) break;
+        }
+      }
+      // Fallback: try filename
+      if (!reportDate) {
+        const fm = file.name.match(/(\d{6,8})/);
+        if (fm) {
+          const d = fm[1].length===6 ? '20'+fm[1] : fm[1];
+          reportDate = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+        }
+      }
+      if (!reportDate) reportDate = new Date().toISOString().slice(0,10);
+
+      // Map country name → sub id
+      const countryMap = {
+        'FRANCE':'france','BRAZIL':'brazil','INDIA':'india','RUSSIA':'russia',
+        'JAPAN':'japan','CHINA':'china','SINGAPORE':'singapore','MALAYSIA':'malaysia','US':'us','USA':'us',
+      };
+
+      // Detect ALL column positions dynamically from header row
+      const headerRow = raw[1] || [];
+      let countryCol = -1, currencyCol = -1, prevCol = -1, currCol = -1;
+      for (let c = 0; c < headerRow.length; c++) {
+        const h = String(headerRow[c]||'').toLowerCase().replace(/\s|\n/g,'');
+        if (h.includes('country')) countryCol = c;
+        if (h.includes('currency') && !h.includes('account')) currencyCol = c;
+        if (h.includes('02-28') || (h.includes('local') && h.includes('currency'))) prevCol = c;
+        if ((h.includes('current') && h.includes('ledger')) || h.includes('currentledger')) currCol = c;
+      }
+      // Fallbacks
+      if (countryCol === -1) countryCol = 1;
+      if (currencyCol === -1) currencyCol = 4;
+      if (prevCol === -1 && currCol !== -1) prevCol = currCol;
+      if (currCol === -1 && prevCol !== -1) currCol = prevCol;
+      if (prevCol === -1 && currCol === -1) {
+        // last 2 columns with numbers
+        prevCol = headerRow.length - 2;
+        currCol = headerRow.length - 1;
+      }
+
+      console.log(`[MultiFile] cols: country=${countryCol}, currency=${currencyCol}, prev=${prevCol}, curr=${currCol}`);
+
+      // Aggregate balances by country
+      const agg = {}; // subId → {currency, prevTotal, currTotal}
+      for (let i = 2; i < raw.length; i++) {
+        const row = raw[i];
+        if (!row) continue;
+        const countryRaw = String(row[countryCol]||'').trim().toUpperCase();
+        if (!countryRaw) continue;
+        const subId = countryMap[countryRaw];
+        if (!subId) continue;
+        const currency = row[currencyCol] ? String(row[currencyCol]).trim() : null;
+        const prevBal = parseFloat(row[prevCol]);
+        const currBal = parseFloat(row[currCol]);
+        if (!agg[subId]) agg[subId] = {currency, prevTotal:0, currTotal:0};
+        if (!isNaN(prevBal)) agg[subId].prevTotal += prevBal;
+        if (!isNaN(currBal)) agg[subId].currTotal += currBal;
+      }
+
+      // Process each found subsidiary
+      let count = 0;
+      for (const [subId, {currency, prevTotal, currTotal}] of Object.entries(agg)) {
+        const sub = SUBSIDIARIES.find(s => s.id === subId);
+        if (!sub) continue;
+        const fx = sub.fx;
+        const day = parseInt(reportDate.slice(8,10));
+        const parsed = {
+          subId, name:sub.name, flag:sub.flag, currency:sub.currency, fx,
+          asOf: reportDate, asOfDay: day,
+          year: parseInt(reportDate.slice(0,4)), month: parseInt(reportDate.slice(5,7)),
+          prevMonthBal: prevTotal,
+          balance: currTotal, balanceKRW: currTotal * fx,
+          daily: {[day]: currTotal},
+          series: [prevTotal, currTotal],
+          labels: [`2월말`, `${parseInt(reportDate.slice(5,7))}/${day}`],
+          filename: file.name,
+          isBalanceDetails: true,
+        };
+        subData[subId] = parsed;
+
+        // Update slot UI
+        const slot = document.getElementById('slot-'+subId);
+        const statusEl = document.getElementById('slot-status-'+subId);
+        if (slot && statusEl) {
+          slot.classList.add('loaded');
+          statusEl.className='slot-status ok';
+          statusEl.textContent=`✓ ${fmtLocal(currTotal)} ${sub.currency}`;
+          let badge = slot.querySelector('.slot-date-badge');
+          if(!badge){badge=document.createElement('div');badge.className='slot-date-badge';slot.appendChild(badge);}
+          badge.textContent=reportDate;
+          let clr=slot.querySelector('.slot-clear');
+          if(clr)clr.remove();
+          const clearBtn=document.createElement('div');
+          clearBtn.className='slot-clear'; clearBtn.innerHTML='✕'; clearBtn.title='삭제';
+          clearBtn.onclick=ev=>{ev.stopPropagation();clearSlot(subId);};
+          slot.appendChild(clearBtn);
+        }
+        count++;
+      }
+      if (count > 0) renderAll();
+      else alert('파일에서 법인 데이터를 찾을 수 없습니다.');
+    } catch(err) {
+      alert('복합 파일 파싱 오류: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function clearSlot(subId) {
+  delete subData[subId];
+  const slot = document.getElementById('slot-' + subId);
+  slot.classList.remove('loaded');
+  const badge = slot.querySelector('.slot-date-badge');
+  if(badge) badge.remove();
+  const clr = slot.querySelector('.slot-clear');
+  if(clr) clr.remove();
+  const inp = document.getElementById('file-' + subId);
+  inp.value='';
+  document.getElementById('slot-status-' + subId).className='slot-status';
+  document.getElementById('slot-status-' + subId).textContent='클릭 또는 드래그하여 업로드';
+  renderAll();
+}
+
+// ═══════════════════════════════════════════
+// PARSE EXCEL
+// ═══════════════════════════════════════════
+function parseSubFile(buffer, sub, filename) {
+  const wb = XLSX.read(buffer, {
+    type:'array',
+    cellDates: true,
+    sheetStubs: false,
+    cellNF: false,
+    cellStyles: false,
+    cellHTML: false,
+    WTF: false,
+  });
+  // Try sheet names
+  const sheetName = wb.SheetNames.find(n =>
+    n.toLowerCase().includes('daily cash flow') ||
+    n.toLowerCase().includes('summary')
+  ) || wb.SheetNames[0];
+
+  const ws = wb.Sheets[sheetName];
+  // 필요한 행만 읽기 (row 0~41, 일별 데이터 포함 충분한 범위)
+  const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, range:{s:{r:0,c:0},e:{r:42,c:38}}});
+
+  // Extract as-of date from filename first
+  const fnMatch = filename.match(/(\d{8})/);
+  let asOf = null, asOfDay = null;
+  if (fnMatch) {
+    const d = fnMatch[1];
+    asOf = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+    asOfDay = parseInt(d.slice(6,8));
+  }
+
+  // Get month/year from row 6
+  const monthHeader = raw[6] ? (raw[6][1] || raw[6][2] || '') : '';
+  const monthMatch = String(monthHeader).match(/(\w+)\s+(\d{4})/i);
+  let year = 2026, month = 3;
+  if (monthMatch) {
+    const months = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+    month = months[monthMatch[1].toLowerCase().slice(0,3)] || month;
+    year = parseInt(monthMatch[2]);
+  }
+
+  // Row 8 = day numbers (col 5..35)
+  // Row 9 = balance
+  const dayRow = raw[8] || [];
+  const balRow = raw[9] || [];
+
+  const prevMonthBal = balRow[4] !== null && balRow[4] !== undefined ? parseFloat(balRow[4]) : 0;
+
+  // Build day → balance map
+  const daily = {};
+  let lastDay = 0;
+  for (let c = 5; c <= 35; c++) {
+    const dayNum = dayRow[c];
+    const balVal = balRow[c];
+    if (dayNum !== null && dayNum !== undefined && !isNaN(parseFloat(dayNum))) {
+      const d = Math.round(parseFloat(dayNum));
+      const b = balVal !== null && balVal !== undefined ? parseFloat(balVal) : null;
+      if (b !== null) {
+        daily[d] = b;
+        lastDay = d;
+      }
+    }
+  }
+
+  // Get balance on as-of date (or last available day ≤ asOfDay)
+  let balance = prevMonthBal;
+  let effectiveDay = 0;
+  if (asOfDay) {
+    for (let d = asOfDay; d >= 1; d--) {
+      if (daily[d] !== undefined) { balance = daily[d]; effectiveDay = d; break; }
+    }
+  } else {
+    balance = daily[lastDay] ?? prevMonthBal;
+    effectiveDay = lastDay;
+  }
+
+  if (!asOf) asOf = `${year}-${String(month).padStart(2,'0')}-${String(effectiveDay).padStart(2,'0')}`;
+
+  // Build ordered series (day 1-31)
+  const series = [];
+  const labels = [];
+  for (let d = 1; d <= 31; d++) {
+    if (daily[d] !== undefined) {
+      series.push(daily[d]);
+      labels.push(`${month}/${d}`);
+    }
+  }
+
+  return {
+    subId: sub.id,
+    name: sub.name,
+    flag: sub.flag,
+    currency: sub.currency,
+    fx: sub.fx,
+    asOf,
+    asOfDay: effectiveDay,
+    year, month,
+    prevMonthBal,
+    balance,
+    balanceKRW: balance * sub.fx,
+    daily,
+    series,
+    labels,
+    filename,
+  };
+}
+
+// ═══════════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════════
+function renderAll() {
+  const loaded = Object.values(subData);
+  const count = loaded.length;
+  document.getElementById('loadedCount').textContent = `${count} / ${SUBSIDIARIES.length} 법인 로드됨`;
+
+  if (count === 0) {
+    document.getElementById('emptyState').classList.add('show');
+    ['kpiRow','subSection','tblWrap'].forEach(id => document.getElementById(id).style.display='none');
+    document.getElementById('charts26Wrap').style.display='none';
+    document.getElementById('asofLegend').style.display='none';
+    document.getElementById('weekBadge').textContent = '파일 업로드 대기 중';
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) saveBtn.style.display = 'none';
+    return;
+  }
+
+  document.getElementById('emptyState').classList.remove('show');
+  document.getElementById('kpiRow').style.display='grid';
+  document.getElementById('subSection').style.display='flex';
+  document.getElementById('charts26Wrap').style.display='grid';
+  document.getElementById('tblWrap').style.display='block';
+
+  // Week badge
+  const dates = loaded.map(d => d.asOf).sort();
+  const latestDate = dates[dates.length-1];
+  document.getElementById('weekBadge').textContent = `기준일: ${latestDate} 기준`;
+
+  // Check for stale dates
+  const uniqueDates = [...new Set(dates)];
+  if (uniqueDates.length > 1) {
+    document.getElementById('dateAlert').classList.add('show');
+    const staleItems = loaded.filter(d => d.asOf !== latestDate).map(d => `${d.flag}${d.name}(${d.asOf})`).join(', ');
+    document.getElementById('dateAlertText').textContent = `⚠ 법인별 기준일자가 상이합니다: ${staleItems}`;
+  } else {
+    document.getElementById('dateAlert').classList.remove('show');
+  }
+
+  renderAsofLegend(loaded, latestDate);
+  renderKPIs(loaded, latestDate);
+  renderSubCards(loaded, latestDate);
+  renderBarDoughnut26(loaded);
+  renderTable(loaded, latestDate);
+  updateSaveBtn();
+}
+
+// ═══════════════════════════════════════════
+// AS-OF LEGEND
+// ═══════════════════════════════════════════
+function renderAsofLegend(loaded, latestDate) {
+  const el = document.getElementById('asofLegend');
+  el.style.display = 'flex';
+  el.innerHTML = '<span style="font-size:10px;color:var(--muted);font-family:\'JetBrains Mono\',monospace;white-space:nowrap">잔액 기준일:</span>' +
+    loaded.map(d => {
+      const isFresh = d.asOf === latestDate;
+      return `<div class="asof-item">
+        <span class="asof-flag">${d.flag}</span>
+        <span class="asof-label">${d.name}</span>
+        <span class="asof-val ${isFresh?'fresh':'stale'}">${d.asOf}</span>
+      </div>`;
+    }).join('');
+}
+
+// ═══════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════
+function renderKPIs(loaded, latestDate) {
+  const totalKRW = loaded.reduce((s,d) => s + d.balanceKRW, 0);
+  const totalPrevKRW = loaded.reduce((s,d) => s + d.prevMonthBal * d.fx, 0);
+  const chg = totalKRW - totalPrevKRW;
+  const chgPct = totalPrevKRW ? chg/totalPrevKRW*100 : 0;
+  const biggest = [...loaded].sort((a,b) => b.balanceKRW - a.balanceKRW)[0];
+  const chgCls = chgPct > 0 ? 'up' : chgPct < 0 ? 'down' : 'flat';
+  const chgArrow = chgPct > 0 ? '▲' : chgPct < 0 ? '▼' : '—';
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">통합 잔액 (KRW 환산)</div>
+      <div class="kpi-val">${fmtKrw(totalKRW)}</div>
+      <div class="kpi-sub">${fmtKrw(totalKRW)}</div>
+      <div class="kpi-delta ${chgCls}">${chgArrow} ${Math.abs(chgPct).toFixed(2)}% 전월말 대비</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">로드된 법인</div>
+      <div class="kpi-val">${loaded.length}</div>
+      <div class="kpi-sub">총 ${SUBSIDIARIES.length}개 법인 중</div>
+      <div class="kpi-delta flat">— ${loaded.map(d=>d.flag).join(' ')}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">전월말 대비 변동</div>
+      <div class="kpi-val ${chgCls}">${chg>=0?'+':''}${fmtKrw(chg)}</div>
+      <div class="kpi-sub">${chg>=0?'+':''}${fmtKrw(chg)}</div>
+      <div class="kpi-delta ${chgCls}">${chgArrow} ${chg>=0?'증가':'감소'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">최대 잔액 법인</div>
+      <div class="kpi-val">${biggest.flag} ${biggest.name}</div>
+      <div class="kpi-sub">${fmtKrw(biggest.balanceKRW)}</div>
+      <div class="kpi-delta flat">— ${biggest.currency} ${fmtLocal(biggest.balance)}</div>
+    </div>
+  `;
+  document.getElementById('tblDate').textContent = latestDate + ' 기준';
+}
+
+// ═══════════════════════════════════════════
+// SUB CARDS
+// ═══════════════════════════════════════════
+function renderSubCards(loaded, latestDate) {
+  const grid = document.getElementById('subGrid');
+  grid.innerHTML = '';
+  const loadedIds = new Set(loaded.map(d=>d.subId));
+
+  SUBSIDIARIES.forEach((sub, si) => {
+    const d = subData[sub.id];
+    const color = COLORS[si % COLORS.length];
+    const card = document.createElement('div');
+    card.className = 'sub-card' + (d ? '' : ' pending') + (selectedSub===sub.id ? ' active' : '');
+    card.style.animationDelay = (si*0.04)+'s';
+
+    if (!d) {
+      card.innerHTML = `
+        <div class="sub-card-top">
+          <div class="sub-id"><span class="sub-flag2">${sub.flag}</span>
+            <div><div class="sub-name2">${sub.name}</div><div class="sub-country2">${sub.nameEn}</div></div>
+          </div>
+          <span class="sub-cur">${sub.currency}</span>
+        </div>
+        <div class="pending-overlay">
+          <div class="p-icon">📤</div>
+          <div class="p-text">파일 미수신</div>
+        </div>
+      `;
+      card.onclick = () => document.getElementById('file-'+sub.id).click();
+    } else {
+      const chg = d.balance - d.prevMonthBal;
+      const pct = d.prevMonthBal ? chg/d.prevMonthBal*100 : 0;
+      const chipCls = pct > 0.01 ? 'chip-up' : pct < -0.01 ? 'chip-down' : 'chip-flat';
+      const arrow = pct > 0.01 ? '▲' : pct < -0.01 ? '▼' : '—';
+      const isFresh = d.asOf === latestDate;
+      const tagCls = isFresh ? 'fresh' : 'stale';
+      const spark = buildSparkSVG(d.series, color);
+
+      card.innerHTML = `
+        <div class="sub-card-top">
+          <div class="sub-id"><span class="sub-flag2">${d.flag}</span>
+            <div><div class="sub-name2">${d.name}</div><div class="sub-country2">${sub.nameEn}</div></div>
+          </div>
+          <span class="sub-cur">${d.currency}</span>
+        </div>
+        <div class="sub-bal">
+          <div class="sub-bal-local">${fmtLocal(d.balance)} <span style="font-size:12px;color:var(--muted)">${d.currency}</span></div>
+          <div class="sub-bal-krw">≈ ${fmtKrw(d.balanceKRW)}</div>
+        </div>
+        <div class="sub-chip ${chipCls}">${arrow} ${Math.abs(pct).toFixed(2)}% &nbsp;|&nbsp; ${chg>=0?'+':''}${fmtLocal(chg)} ${d.currency}</div>
+        <div class="card-date-tag ${tagCls}">${d.asOf} 기준</div>
+        <div class="sparkline-wrap">${spark}</div>
+      `;
+      card.onclick = () => selectSub(sub.id);
+    }
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════
+// CHART
+// ═══════════════════════════════════════════
+
+// ═══════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════
+function renderTable(loaded, latestDate) {
+  const totalKRW = loaded.reduce((s,d)=>s+d.balanceKRW,0);
+  const totalPrevKRW = loaded.reduce((s,d)=>s+d.prevMonthBal*d.fx,0);
+  const totalChg = totalKRW - totalPrevKRW;
+  const totalPct = totalPrevKRW ? totalChg/totalPrevKRW*100 : 0;
+
+  const rows = SUBSIDIARIES.map((sub, si) => {
+    const d = subData[sub.id];
+    if (!d) return `<tr style="opacity:0.3">
+      <td><div class="cell-flag-name">${sub.flag} ${sub.name}</div></td>
+      <td class="cell-mono" style="color:var(--cyan)">${sub.currency}</td>
+      <td colspan="5" style="color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace">— 파일 미수신 —</td>
+      <td class="cell-asof asof-none">—</td>
+    </tr>`;
+    const chg = d.balance - d.prevMonthBal;
+    const pct = d.prevMonthBal ? chg/d.prevMonthBal*100 : 0;
+    const ratio = totalKRW ? d.balanceKRW/totalKRW*100 : 0;
+    const pctCls = pct>0?'up':pct<0?'down':'flat';
+    const isFresh = d.asOf === latestDate;
+    return `<tr>
+      <td><div class="cell-flag-name">${d.flag} ${d.name}</div></td>
+      <td class="cell-mono" style="color:var(--cyan)">${d.currency}</td>
+      <td class="cell-right cell-mono">${fmtLocal(d.prevMonthBal)}</td>
+      <td class="cell-right cell-mono">${fmtLocal(d.balance)}</td>
+      <td class="cell-right cell-mono" style="color:var(--cyan)">${fmtKrw(d.balanceKRW)}</td>
+      <td class="cell-right cell-mono ${pctCls}">${pct>=0?'+':''}${pct.toFixed(2)}%</td>
+      <td><div class="bar-row"><div class="bar-bg"><div class="bar-fill" style="width:${ratio.toFixed(1)}%"></div></div><span class="cell-mono" style="font-size:10px;color:var(--muted);min-width:36px">${ratio.toFixed(1)}%</span></div></td>
+      <td class="cell-asof ${isFresh?'asof-fresh2':'asof-stale2'}">${d.asOf}${!isFresh?' ⚠':''}</td>
+    </tr>`;
+  }).join('');
+
+  const totalPctCls = totalPct>0?'up':totalPct<0?'down':'flat';
+  const totalRow = `<tr class="tr-total">
+    <td><div class="cell-flag-name">📊 총계</div></td>
+    <td class="cell-mono">KRW</td>
+    <td class="cell-right cell-mono">—</td>
+    <td class="cell-right">—</td>
+    <td class="cell-right cell-mono" style="color:var(--cyan)">${fmtKrw(totalKRW)}</td>
+    <td class="cell-right cell-mono ${totalPctCls}">${totalPct>=0?'+':''}${totalPct.toFixed(2)}%</td>
+    <td><div class="bar-row"><div class="bar-bg"><div class="bar-fill" style="width:100%"></div></div><span class="cell-mono" style="font-size:10px;color:var(--accent)">100%</span></div></td>
+    <td class="cell-asof">—</td>
+  </tr>`;
+  document.getElementById('tblBody').innerHTML = rows + totalRow;
+}
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+function buildSparkSVG(vals, color) {
+  if (!vals || vals.length < 2) return '';
+  const mn = Math.min(...vals), mx = Math.max(...vals), rng = mx-mn||1;
+  const W=280, H=36;
+  const pts = vals.map((v,i) => `${(i/(vals.length-1))*W},${H-((v-mn)/rng)*(H-6)-3}`).join(' ');
+  return `<svg viewBox="0 0 ${W} ${H}" class="sparkline" xmlns="http://www.w3.org/2000/svg">
+    <polyline points="0,${H} ${pts} ${W},${H}" fill="${color}" fill-opacity="0.08" stroke="none"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+// 현지통화: 소수점 2자리, 천단위 콤마
+function fmtLocal(n) {
+  if (n===null||n===undefined||isNaN(n)) return '—';
+  return Number(n).toLocaleString('ko-KR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+// KRW: 억원 단위 (소수점1자리)
+function fmtKrw(n) {
+  if (n===null||n===undefined||isNaN(n)) return '—';
+  return (n/1e8).toFixed(2)+'억원';
+}
+// 하위호환용 (현지통화 표시 용도)
+function fmtShort(n) { return fmtLocal(n); } // alias
+function fmtComma(n) { return Number(n).toLocaleString('ko-KR'); }
+
+function selectSub(id) {
+  selectedSub = selectedSub===id ? null : id;
+  document.querySelectorAll('.sub-card').forEach((el,i) => {
+    el.classList.toggle('active', SUBSIDIARIES[i]?.id === selectedSub);
+  });
+}
+
+function setMode(mode) {
+  chartMode = mode;
+  document.getElementById('btnLocal').classList.toggle('active', mode==='local');
+  document.getElementById('btnKRW').classList.toggle('active', mode==='krw');
+}
+
+
+// ═══════════════════════════════════════════
+// BAR + DOUGHNUT CHARTS
+// ═══════════════════════════════════════════
+let chartInst26Bar=null, chartInst26Pie=null;
+let chartInst25Bar=null, chartInst25Pie=null;
+
+// ── 공통: 도넛 차트 빌더
+function buildDoughnut(canvasId, pieLabels, pieData, pieColors, totalKRW, pieTitle) {
+  return new Chart(document.getElementById(canvasId).getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: pieLabels,
+      datasets: [{ data: pieData, backgroundColor: pieColors, borderColor: '#13151f', borderWidth: 2 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: '#e2e8f0',
+            font: { size: 11, family: "'Noto Sans KR', sans-serif" },
+            padding: 12, boxWidth: 14,
+            generateLabels: chart => chart.data.labels.map((l, i) => {
+              const val = chart.data.datasets[0].data[i];
+              const pct = totalKRW ? (val / totalKRW * 100).toFixed(1) : '0.0';
+              return {
+                text: `${l}   ${fmtKrw(val)}  (${pct}%)`,
+                fillStyle: pieColors[i], strokeStyle: pieColors[i],
+                lineWidth: 0, hidden: false, index: i
+              };
+            })
+          }
+        },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${fmtKrw(ctx.raw)} (${(ctx.raw / totalKRW * 100).toFixed(1)}%)` } }
+      },
+      animation: {
+        onComplete: function () {
+          const c = this.ctx;
+          this.data.datasets.forEach((ds, di) => {
+            this.getDatasetMeta(di).data.forEach((arc, i) => {
+              const pct = ds.data[i] / totalKRW * 100;
+              if (pct < 5) return;
+              const mid = (arc.startAngle + arc.endAngle) / 2;
+              const r = (arc.outerRadius + arc.innerRadius) / 2;
+              const x = arc.x + r * Math.cos(mid), y = arc.y + r * Math.sin(mid);
+              c.save();
+              c.font = 'bold 10px JetBrains Mono'; c.fillStyle = '#fff';
+              c.textAlign = 'center'; c.textBaseline = 'middle';
+              c.fillText(fmtKrw(ds.data[i]), x, y);
+              c.restore();
+            });
+          });
+        }
+      }
+    }
+  });
+}
+
+// ── TAB26: 가로 막대(법인별) + 도넛
+function renderBarDoughnut26(loaded) {
+  const wrap = document.getElementById('charts26Wrap');
+  if (!wrap || !loaded.length) return;
+  if (chartInst26Bar) { chartInst26Bar.destroy(); chartInst26Bar = null; }
+  if (chartInst26Pie) { chartInst26Pie.destroy(); chartInst26Pie = null; }
+
+  const totalKRW = loaded.reduce((s, d) => s + d.balanceKRW, 0);
+  const labels   = loaded.map(d => `${d.flag} ${d.name}`);
+  const data     = loaded.map(d => Math.round(d.balanceKRW));
+  const colors   = loaded.map(d => COLORS[SUBSIDIARIES.findIndex(s => s.id === d.subId) % COLORS.length]);
+
+  wrap.innerHTML = `
+    <div class="chart-panel" style="margin-bottom:0;height:320px;overflow:hidden">
+      <div class="chart-header"><div class="chart-title">📊 법인별 잔액 현황 (KRW 억원)</div></div>
+      <div style="position:relative;height:260px">
+        <canvas id="c26_bar"></canvas>
+      </div>
+    </div>
+    <div class="chart-panel" style="margin-bottom:0;height:320px;overflow:hidden">
+      <div class="chart-header"><div class="chart-title">🥧 법인별 구성비</div></div>
+      <div style="position:relative;height:260px">
+        <canvas id="c26_pie"></canvas>
+      </div>
+    </div>`;
+
+  // 가로 막대
+  chartInst26Bar = new Chart(document.getElementById('c26_bar').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'KRW', data, backgroundColor: colors, borderRadius: 5, borderSkipped: false }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: 90 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${fmtKrw(ctx.raw)}` } }
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 10 }, callback: v => fmtKrw(v) }, grid: { color: '#1f2235' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } }
+      },
+      animation: {
+        onComplete: function () {
+          const c = this.ctx;
+          this.data.datasets.forEach((ds, di) => {
+            this.getDatasetMeta(di).data.forEach((bar, i) => {
+              c.save();
+              c.font = 'bold 10px JetBrains Mono'; c.fillStyle = '#e2e8f0';
+              c.textAlign = 'left'; c.textBaseline = 'middle';
+              c.fillText(' ' + fmtKrw(ds.data[i]), bar.x + 4, bar.y);
+              c.restore();
+            });
+          });
+        }
+      }
+    }
+  });
+
+  chartInst26Pie = buildDoughnut('c26_pie', labels, data, colors, totalKRW, '법인별 구성비');
+}
+
+// ── TAB25: 월별 총합 세로 막대 + 도넛
+function renderBarDoughnut25(loaded) {
+  const wrap = document.getElementById('charts25Wrap');
+  if (!wrap) return;
+  if (chartInst25Bar) { chartInst25Bar.destroy(); chartInst25Bar = null; }
+  if (chartInst25Pie) { chartInst25Pie.destroy(); chartInst25Pie = null; }
+
+  // 월별 총합 계산 (1~12월)
+  const monthTotals = MONTHS_2025.map((m, mi) => {
+    let sum = 0;
+    SUBSIDIARIES.forEach(sub => {
+      const d = (histData[sub.id] || [])[mi];
+      const fx = getMonthFx(sub.id, mi); // 해당 월 평균환율
+      if (d?.bal) sum += d.bal * fx;
+    });
+    return sum || null;
+  });
+  const barLabels = MONTHS_2025;
+  const barData   = monthTotals.map(v => v ? Math.round(v) : 0);
+  // 선택된 월 하이라이트
+  const barColors = MONTHS_2025.map((_, mi) =>
+    mi === hist25SelectedMonth ? '#3b82f6' : 'rgba(59,130,246,0.45)'
+  );
+
+  // 도넛: 선택된 월의 법인별 구성
+  const totalKRW = loaded.reduce((s, d) => s + d.balanceKRW, 0);
+  const pieLabels = loaded.map(d => `${d.flag} ${d.name}`);
+  const pieData   = loaded.map(d => Math.round(d.balanceKRW));
+  const pieColors = loaded.map(d => COLORS[SUBSIDIARIES.findIndex(s => s.id === d.subId) % COLORS.length]);
+
+  wrap.innerHTML = `
+    <div class="chart-panel" style="margin-bottom:0;height:300px;overflow:hidden">
+      <div class="chart-header"><div class="chart-title">📊 월별 총 잔액 추이 (KRW 억원)</div></div>
+      <div style="position:relative;height:240px">
+        <canvas id="c25_bar"></canvas>
+      </div>
+    </div>
+    <div class="chart-panel" style="margin-bottom:0;height:300px;overflow:hidden">
+      <div class="chart-header"><div class="chart-title">🥧 ${MONTHS_2025[hist25SelectedMonth]} 법인별 구성비</div></div>
+      <div style="position:relative;height:240px">
+        <canvas id="c25_pie"></canvas>
+      </div>
+    </div>`;
+
+  // Y축 범위: 데이터 최솟값 95% ~ 최댓값 105% (막대 적절한 높이)
+  const validVals = barData.filter(v => v > 0);
+  const yMin = validVals.length ? Math.floor(Math.min(...validVals) * 0.97 / 1e8) * 1e8 : 0;
+  const yMax = validVals.length ? Math.ceil(Math.max(...validVals) * 1.04 / 1e8) * 1e8 : undefined;
+
+  // 세로 막대
+  chartInst25Bar = new Chart(document.getElementById('c25_bar').getContext('2d'), {
+    type: 'bar',
+    data: { labels: barLabels, datasets: [{ label: 'KRW', data: barData, backgroundColor: barColors, borderRadius: 5, borderSkipped: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 28, right: 8 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${fmtKrw(ctx.raw)}` } }
+      },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } },
+        y: { min: yMin, max: yMax, ticks: { color: '#64748b', font: { size: 10 }, callback: v => fmtKrw(v) }, grid: { color: '#1f2235' } }
+      },
+      animation: {
+        onComplete: function () {
+          const c = this.ctx;
+          this.data.datasets.forEach((ds, di) => {
+            this.getDatasetMeta(di).data.forEach((bar, i) => {
+              if (!ds.data[i]) return;
+              c.save();
+              c.font = 'bold 10px JetBrains Mono'; c.fillStyle = '#e2e8f0';
+              c.textAlign = 'center'; c.textBaseline = 'bottom';
+              c.fillText(fmtKrw(ds.data[i]), bar.x, bar.y - 4);
+              c.restore();
+            });
+          });
+        }
+      }
+    }
+  });
+
+  chartInst25Pie = buildDoughnut('c25_pie', pieLabels, pieData, pieColors, totalKRW,
+    `${MONTHS_2025[hist25SelectedMonth]} 법인별 구성비`);
+}
+
+
+// ═══════════════════════════════════════════
+// BOOT WITH SAMPLE DATA (demo)
+// ═══════════════════════════════════════════
+const SAMPLE_DATA = {
+  japan:     {asOf:'2026-03-10',asOfDay:10,year:2026,month:3,prevMonthBal:373453265,balance:371915726,balanceKRW:3468597635,daily:{1:373453265,2:373453265,3:371330761,4:371330761,5:371217241,6:371215866,7:371915726,8:371915726,9:371915726,10:371915726},series:[373453265,373453265,371330761,371330761,371217241,371215866,371915726,371915726,371915726,371915726],labels:['3/1','3/2','3/3','3/4','3/5','3/6','3/7','3/8','3/9','3/10'],filename:'Demo_Japan.xlsx'},
+  china:     {asOf:'2026-03-09',asOfDay:9,year:2026,month:3,prevMonthBal:3978888.12,balance:3978713.12,balanceKRW:834455503,daily:{1:3978888.12,2:3978888.12,3:3978888.12,4:3978888.12,5:3978888.12,6:3978863.12,7:3978713.12,8:3978713.12,9:3978713.12},series:[3978888.12,3978888.12,3978888.12,3978888.12,3978888.12,3978863.12,3978713.12,3978713.12,3978713.12],labels:['3/1','3/2','3/3','3/4','3/5','3/6','3/7','3/8','3/9'],filename:'Demo_China.xlsx'},
+  singapore: {asOf:'2026-03-09',asOfDay:9,year:2026,month:3,prevMonthBal:2057562.38,balance:2057562.38,balanceKRW:2352081859,daily:{1:2057562.38,2:2057562.38,3:2057562.38,4:2057562.38,5:2057562.38,6:2057562.38,7:2057562.38,8:2057562.38,9:2057562.38},series:[2057562.38,2057562.38,2057562.38,2057562.38,2057562.38,2057562.38,2057562.38,2057562.38,2057562.38],labels:['3/1','3/2','3/3','3/4','3/5','3/6','3/7','3/8','3/9'],filename:'Demo_Singapore.xlsx'},
+  malaysia:  {asOf:'2026-03-09',asOfDay:9,year:2026,month:3,prevMonthBal:380202.25,balance:380115.85,balanceKRW:140642864,daily:{1:380202.25,2:380115.85,3:380115.85,4:380115.85,5:380115.85,6:380115.85,7:380115.85,8:380115.85,9:380115.85},series:[380202.25,380115.85,380115.85,380115.85,380115.85,380115.85,380115.85,380115.85,380115.85],labels:['3/1','3/2','3/3','3/4','3/5','3/6','3/7','3/8','3/9'],filename:'Demo_Malaysia.xlsx'},
+  us:        {asOf:'2026-03-10',asOfDay:10,year:2026,month:3,prevMonthBal:357932.70,balance:393540.66,balanceKRW:570366349,daily:{1:357932.7,2:357932.7,3:393312.3,4:393552.3,5:393552.3,6:393540.66,7:393540.66,8:393540.66,9:393540.66,10:393540.66},series:[357932.7,357932.7,393312.3,393552.3,393552.3,393540.66,393540.66,393540.66,393540.66,393540.66],labels:['3/1','3/2','3/3','3/4','3/5','3/6','3/7','3/8','3/9','3/10'],filename:'Demo_US.xlsx'},
+  france:    {asOf:'2026-03-10',asOfDay:10,year:2026,month:3,prevMonthBal:291100.56,balance:291100.56,balanceKRW:498669814,isBalanceDetails:true,daily:{10:291100.56},series:[291100.56,291100.56],labels:['2월말','3/10'],filename:'Demo_Multi.xlsx'},
+  brazil:    {asOf:'2026-03-10',asOfDay:10,year:2026,month:3,prevMonthBal:1588975.41,balance:1578492.60,balanceKRW:439715060,isBalanceDetails:true,daily:{10:1578492.60},series:[1588975.41,1578492.60],labels:['2월말','3/10'],filename:'Demo_Multi.xlsx'},
+  india:     {asOf:'2026-03-10',asOfDay:10,year:2026,month:3,prevMonthBal:45347353.62,balance:45347353.62,balanceKRW:723743763,isBalanceDetails:true,daily:{10:45347353.62},series:[45347353.62,45347353.62],labels:['2월말','3/10'],filename:'Demo_Multi.xlsx'},
+  russia:    {asOf:'2026-03-10',asOfDay:10,year:2026,month:3,prevMonthBal:492.3,balance:492.3,balanceKRW:9285,isBalanceDetails:true,daily:{10:492.3},series:[492.3,492.3],labels:['2월말','3/10'],filename:'Demo_Multi.xlsx'},
+};
+
+function loadSampleData() {
+  Object.entries(SAMPLE_DATA).forEach(([id, d]) => {
+    const sub = SUBSIDIARIES.find(s=>s.id===id);
+    if (!sub) return;
+    subData[id] = { subId:id, name:sub.name, flag:sub.flag, currency:sub.currency, fx:sub.fx, ...d };
+    // Update slot
+    const slot = document.getElementById('slot-'+id);
+    if (slot) {
+      slot.classList.add('loaded');
+      const st = document.getElementById('slot-status-'+id);
+      st.className='slot-status ok';
+      st.textContent=`✓ ${fmtLocal(d.balance)} ${sub.currency}`;
+      let badge = slot.querySelector('.slot-date-badge');
+      if(!badge){badge=document.createElement('div');badge.className='slot-date-badge';slot.appendChild(badge);}
+      badge.textContent=d.asOf;
+    }
+  });
+  renderAll();
+}
+
+// ═══════════════════════════════════════════
+// PASSWORD LOCK
+// ═══════════════════════════════════════════
+
+// ★ 비밀번호를 여기서 변경하세요 ★
+const PASSWORDS = ['cf2026!', 'dashboard'];  // 여러 개 설정 가능
+
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MIN  = 10; // 잠금 시간(분)
+
+let failCount = 0;
+let lockedUntil = null;
+
+// 세션 중 이미 인증했으면 바로 해제
+if (sessionStorage.getItem('cf_auth') === 'ok') {
+  document.getElementById('lockScreen').style.display = 'none';
+} else {
+  document.getElementById('pwInput').focus();
+}
+
+function tryUnlock() {
+  const now = Date.now();
+
+  // 잠금 상태 체크
+  if (lockedUntil && now < lockedUntil) {
+    const remaining = Math.ceil((lockedUntil - now) / 60000);
+    showLockError(`⛔ ${remaining}분 후 다시 시도하세요.`);
+    return;
+  }
+
+  const input = document.getElementById('pwInput').value.trim();
+  const input2 = document.getElementById('pwInput');
+
+  if (PASSWORDS.includes(input)) {
+    // 인증 성공
+    sessionStorage.setItem('cf_auth', 'ok');
+    const lock = document.getElementById('lockScreen');
+    lock.style.transition = 'opacity 0.4s ease';
+    lock.style.opacity = '0';
+    setTimeout(() => lock.style.display = 'none', 400);
+    failCount = 0;
+  } else {
+    // 실패
+    failCount++;
+    input2.value = '';
+    input2.classList.add('error');
+    setTimeout(() => input2.classList.remove('error'), 500);
+
+    const remaining = MAX_ATTEMPTS - failCount;
+    if (remaining <= 0) {
+      lockedUntil = now + LOCKOUT_MIN * 60 * 1000;
+      showLockError(`⛔ ${MAX_ATTEMPTS}회 실패. ${LOCKOUT_MIN}분간 잠금됩니다.`);
+      document.getElementById('lockAttempts').textContent = '';
+    } else {
+      showLockError('비밀번호가 올바르지 않습니다.');
+      document.getElementById('lockAttempts').textContent =
+        `남은 시도: ${remaining}/${MAX_ATTEMPTS}`;
+    }
+  }
+}
+
+function showLockError(msg) {
+  const el = document.getElementById('lockError');
+  el.textContent = msg;
+  el.style.opacity = '1';
+}
+
+function toggleEye() {
+  const inp = document.getElementById('pwInput');
+  const eye = document.getElementById('eyeBtn');
+  if (inp.type === 'password') {
+    inp.type = 'text'; eye.textContent = '🙈';
+  } else {
+    inp.type = 'password'; eye.textContent = '👁';
+  }
+  inp.focus();
+}
+
+// ═══════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    const ids = ['tab26','tab25'];
+    btn.classList.toggle('active', ids[i] === id);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === id);
+  });
+}
+
+// ═══════════════════════════════════════════
+
+// ─── 2025년 월평균 매매기준율 (서울외국환중개) ───
+// smbsMonthlyFx2025[subId] = [1월..12월]  (JPY는 표가 (100) 기준이면 자동으로 /100 처리)
+let smbsMonthlyFx2025 = {};
+
+function getMonthFx(subId, monthIdx) {
+  return (smbsMonthlyFx2025[subId] && smbsMonthlyFx2025[subId][monthIdx])
+      || histFxRates[subId]
+      || SUBSIDIARIES.find(s=>s.id===subId)?.fx
+      || 1;
+}
+
+function openFxModal(){
+  document.getElementById('fxModal').classList.add('show');
+  document.getElementById('fxPaste').focus();
+  try{
+    const saved = localStorage.getItem('cf_smbs_fx_2025');
+    if(saved){
+      const obj = JSON.parse(saved);
+      if(obj && typeof obj==='object') smbsMonthlyFx2025 = obj;
+    }
+  }catch(e){}
+}
+function closeFxModal(){ document.getElementById('fxModal').classList.remove('show'); }
+function clearFxPaste(){
+  document.getElementById('fxPaste').value='';
+  const s=document.getElementById('fxModalStatus');
+  s.className='modal-status';
+  s.textContent='지웠습니다. 다시 붙여넣고 적용을 누르세요.';
+}
+function fillFxSample(){
+  document.getElementById('fxPaste').value =
+`2025. 01\t미국 달러 (USD)\t1,234.56\n2025. 02\t미국 달러 (USD)\t1,210.34\n\n2025. 01\t일본 엔 (JPY) (100)\t912.34\n2025. 02\t일본 엔 (JPY) (100)\t905.67\n`;
+}
+
+function parseSmbsMonthlyAvgText(text){
+  const lines = String(text||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const codeToSub = {USD:'us', EUR:'france', JPY:'japan', CNY:'china', CNH:'china', SGD:'singapore', MYR:'malaysia', BRL:'brazil', INR:'india', RUB:'russia'};
+  const out = {};
+  for(const line of lines){
+    const s = line.replace(/\s+/g,' ').trim();
+    const m = s.match(/2025\.?\s*(\d{2})/);
+    if(!m) continue;
+    const mi = parseInt(m[1],10)-1;
+    if(mi<0||mi>11) continue;
+    const cm = s.match(/\((USD|EUR|JPY|CNY|CNH|SGD|MYR|BRL|INR|RUB)\)/i);
+    if(!cm) continue;
+    const code = cm[1].toUpperCase();
+    const subId = codeToSub[code];
+    if(!subId) continue;
+    const rm = s.match(/([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]+)?|[0-9]+(?:\.[0-9]+)?)\s*$/);
+    if(!rm) continue;
+    let rate = parseFloat(rm[1].replace(/,/g,''));
+    if(!isFinite(rate)) continue;
+    if(code==='JPY' && (/(\(100\))/.test(s) || /JPY\s*\(100\)/i.test(s) || /\(JPY\)\s*\(100\)/i.test(s))) rate = rate/100.0;
+    if(!out[subId]) out[subId] = Array(12).fill(null);
+    out[subId][mi] = rate;
+  }
+  return out;
+}
+
+async function importFxFromPaste(){
+  const txt = document.getElementById('fxPaste').value;
+  const parsed = parseSmbsMonthlyAvgText(txt);
+  const keys = Object.keys(parsed);
+  const st = document.getElementById('fxModalStatus');
+  if(!keys.length){
+    st.className='modal-status err';
+    st.textContent='❌ 붙여넣은 내용에서 2025년/통화코드/환율을 추출하지 못했습니다. 표의 행(결과 리스트)을 그대로 복사해 붙여넣어 주세요.';
+    return;
+  }
+  keys.forEach(k=>{
+    if(!smbsMonthlyFx2025[k]) smbsMonthlyFx2025[k]=Array(12).fill(null);
+    parsed[k].forEach((v,mi)=>{ if(v) smbsMonthlyFx2025[k][mi]=v; });
+  });
+  try{ localStorage.setItem('cf_smbs_fx_2025', JSON.stringify(smbsMonthlyFx2025)); }catch(e){}
+  try{
+    if(typeof SUPABASE_URL!=='undefined'){
+      await fetch(`${SUPABASE_URL}/rest/v1/cf_hist_2025`, {
+        method:'POST',
+        headers:{...HEADERS,'Prefer':'resolution=merge-duplicates'},
+        body: JSON.stringify({ id: 2, data: { smbsMonthlyFx2025 } })
+      });
+    }
+  }catch(e){}
+  st.className='modal-status ok';
+  st.textContent=`✅ 적용 완료: ${keys.length}개 통화(일부 월 포함). 25년 월별 화면이 즉시 갱신되었습니다.`;
+  renderAll25();
+  setTimeout(()=>closeFxModal(), 600);
+}
+
+// /* FX COMPAT */
+// 레거시 코드에서 참조할 수 있어 더미를 유지합니다.
+const MONTHLY_FX_2025 = smbsMonthlyFx2025;
+
+// 25년 월별 데이터
+// ═══════════════════════════════════════════
+const MONTHS_2025 = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+// histData[subId][monthIdx] = { bal, fx }
+let histData = {};
+
+// Total 파일 업로드 핸들러
+function handleTotalFiles(event) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+  const status = document.getElementById('hist25UploadStatus');
+  status.textContent = `⏳ ${files.length}개 파일 처리 중...`;
+  let done = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        parseTotalFile(e.target.result, file.name);
+        done++;
+        if (done === files.length) {
+          status.textContent = `✅ 파싱 완료 — (FX는 'FX 붙여넣기'로 입력)`;
+            renderAll25();
+        }
+      } catch(err) {
+        status.textContent = '❌ 오류: ' + err.message;
+        console.error(err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// Total 파일 파싱 (summary_monthly 시트 기준)
+function parseTotalFile(buffer, filename) {
+  const wb = XLSX.read(buffer, {
+    type:'array', cellDates:true,
+    sheetStubs:false, cellNF:false, cellStyles:false, cellHTML:false
+  });
+
+  // 파일명에서 연도 확인
+  const match = filename.match(/(\d{8})/);
+  if (!match) throw new Error('파일명에서 날짜를 찾을 수 없습니다: ' + filename);
+  const year = parseInt(match[1].slice(0,4));
+  if (year !== 2025) throw new Error('2025년 파일만 지원됩니다.');
+
+  // ── fx rate 시트에서 환율 추출 → histFxRates에 저장 ──
+  const fxWsName = wb.SheetNames.find(n => n.toLowerCase().includes('fx rate') || n.toLowerCase().includes('fx')) || null;
+  const fxRates = {};
+  if (fxWsName) {
+    const fxWs = wb.Sheets[fxWsName];
+    const fxRaw = XLSX.utils.sheet_to_json(fxWs, {header:1, defval:null});
+    const cmap = {USD:'us',EUR:'france',JPY:'japan',CNY:'china',SGD:'singapore',MYR:'malaysia',BRL:'brazil',INR:'india',RUB:'russia'};
+    for (let i = 3; i < fxRaw.length; i++) {
+      const row = fxRaw[i]; if (!row) continue;
+      const code = String(row[1]||'').trim();
+      const rate = parseFloat(row[8]); // 매매기준율
+      if (cmap[code] && !isNaN(rate)) {
+        fxRates[cmap[code]] = rate;
+        histFxRates[cmap[code]] = rate; // 전역 저장
+      }
+    }
+  }
+
+  // ── Balance Details 시트에서 1~12월 전체 추출 ──
+  const bdWsName = wb.SheetNames.find(n => n.toLowerCase().includes('balance details') || n.toLowerCase().includes('balance detail'));
+  if (!bdWsName) throw new Error('Balance Details 시트를 찾을 수 없습니다.');
+  const bdWs = wb.Sheets[bdWsName];
+  const raw = XLSX.utils.sheet_to_json(bdWs, {header:1, defval:null});
+
+  // col 1=국가, col 2='Total', Local Currency cols: 9,11,13,15,17,19,21,23,25,27,29,31 (1~12월)
+  const LOCAL_COLS = [9,11,13,15,17,19,21,23,25,27,29,31];
+  const nameMap = {'미국':'us','일본':'japan','싱가포르':'singapore','중국':'china','말레이지아':'malaysia','프랑스':'france','브라질':'brazil','인도':'india','러시아':'russia'};
+
+  let foundSection = false;
+  for (let i = 0; i < raw.length; i++) {
+    const row = raw[i]; if (!row) continue;
+    if (String(row[2]||'').includes('Ending Balance') || String(row[0]||'').includes('Ending Balance')) {
+      foundSection = true;
+    }
+    if (!foundSection) continue;
+
+    const name = String(row[1]||'').trim();
+    const col2 = String(row[2]||'').trim();
+    const subId = nameMap[name];
+    if (!subId || col2 !== 'Total') continue;
+
+    const sub = SUBSIDIARIES.find(s => s.id === subId);
+    const fx = fxRates[subId] || sub?.fx || 0;
+    if (!histData[subId]) histData[subId] = Array(12).fill(null);
+
+    LOCAL_COLS.forEach((col, mi) => {
+      const val = parseFloat(row[col]);
+      if (!isNaN(val) && val > 0) {
+        histData[subId][mi] = { bal: val, fx };
+      }
+    });
+  }
+}
+
+// ─── 25년 월별 탭 (26년 주별과 동일한 구성) ───
+// 특정 월의 환율 반환 (하드코딩 → 파일 환율 → 기본값 순 fallback)
+function getMonthFx(subId, monthIdx) {
+  return smbsMonthlyFx2025[subId]?.[monthIdx]
+      || histFxRates[subId]
+      || SUBSIDIARIES.find(s=>s.id===subId)?.fx
+      || 1;
+}
+
+// monthlyFxRates는 하위 호환용 빈 객체 유지
+let monthlyFxRates = {};
+
+let histFxRates = {};
+let hist25ChartMode = 'local';
+let hist25SelectedSub = null;
+let hist25SelectedMonth = 11; // 기본: 12월
+
+function getHist25Loaded(monthIdx) {
+  const result = [];
+  SUBSIDIARIES.forEach(sub => {
+    const arr = histData[sub.id] || [];
+    const curr = arr[monthIdx];
+    const prev = monthIdx > 0 ? arr[monthIdx - 1] : null;
+    if (!curr || !curr.bal) return;
+    const fx    = getMonthFx(sub.id, monthIdx);       // 해당 월 평균환율
+    const prevFx= monthIdx > 0 ? getMonthFx(sub.id, monthIdx - 1) : fx;
+    const series = arr.map((d, mi) => d?.bal ? d.bal * getMonthFx(sub.id, mi) : null); // KRW series
+    const labels = MONTHS_2025;
+    result.push({
+      subId: sub.id, name: sub.name, flag: sub.flag,
+      currency: sub.currency, fx,
+      balance: curr.bal,
+      prevMonthBal: prev?.bal || 0,
+      prevMonthFx: prevFx,
+      balanceKRW: curr.bal * fx,
+      series, labels,
+    });
+  });
+  return result;
+}
+
+function renderAll25() {
+  const hasData = Object.keys(histData).some(k => histData[k]?.some(d=>d?.bal));
+  const emptyEl = document.getElementById('hist25EmptyState');
+  if (emptyEl) emptyEl.classList.toggle('show', !hasData);
+  ['hist25KpiRow','hist25SubSection','hist25TblWrap'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = hasData ? (id==='hist25KpiRow'?'grid':'block') : 'none';
+  });
+  const cw = document.getElementById('charts25Wrap');
+  if (cw) cw.style.display = hasData ? 'grid' : 'none';
+  const ms = document.getElementById('hist25MonthSelector');
+  if (ms) ms.style.display = hasData ? 'block' : 'none';
+  if (!hasData) return;
+  renderHist25FxStrip();
+  renderHist25MonthBtns();
+  const loaded = getHist25Loaded(hist25SelectedMonth);
+  renderHist25KPIs(loaded);
+  renderHist25SubCards(loaded);
+  renderBarDoughnut25(loaded);
+  renderHist25Table(loaded);
+}
+
+function renderHist25FxStrip() {
+  const strip = document.getElementById('hist25FxStrip');
+  if (!strip) return;
+  // 헤더 레이블 업데이트
+  const lbl = strip.querySelector('.fx-lbl');
+  if (lbl) lbl.innerHTML = `FX RATE<br><span style="font-size:8px;font-weight:400;color:var(--dim)">${MONTHS_2025[hist25SelectedMonth]} 평균</span>`;
+  strip.querySelectorAll('.fx-item2').forEach(el => el.remove());
+  SUBSIDIARIES.forEach(sub => {
+    const fx = getMonthFx(sub.id, hist25SelectedMonth); // 선택월 환율
+    const div = document.createElement('div');
+    div.className = 'fx-item2';
+    div.innerHTML = `<span class="fx-pair2">${sub.currency}/KRW</span><span class="fx-v2">${fx.toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:4})}</span>`;
+    strip.appendChild(div);
+  });
+}
+
+function renderHist25MonthBtns() {
+  const wrap = document.getElementById('hist25MonthBtns');
+  if (!wrap) return;
+  wrap.innerHTML = MONTHS_2025.map((m, mi) => {
+    const has = SUBSIDIARIES.some(s => histData[s.id]?.[mi]?.bal);
+    if (!has) return '';
+    return `<button class="ctrl-btn ${mi===hist25SelectedMonth?'active':''}" onclick="selectHist25Month(${mi})">${m}</button>`;
+  }).join('');
+}
+
+function selectHist25Month(mi) {
+  hist25SelectedMonth = mi;
+  renderAll25();
+}
+
+function renderHist25KPIs(loaded) {
+  const el = document.getElementById('hist25KpiRow');
+  if (!el) return;
+  const totalKRW = loaded.reduce((s,d) => s+d.balanceKRW, 0);
+  const totalPrevKRW = loaded.reduce((s,d) => s+(d.prevMonthBal*(d.prevMonthFx||d.fx)), 0);
+  const chg = totalKRW - totalPrevKRW;
+  const chgPct = totalPrevKRW ? chg/totalPrevKRW*100 : 0;
+  const biggest = [...loaded].sort((a,b)=>b.balanceKRW-a.balanceKRW)[0];
+  const chgCls = chgPct>0?'up':chgPct<0?'down':'flat';
+  const chgArrow = chgPct>0?'▲':chgPct<0?'▼':'—';
+  el.innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">통합 잔액 (KRW 환산)</div>
+      <div class="kpi-val">${fmtKrw(totalKRW)}</div>
+      <div class="kpi-sub">${fmtKrw(totalKRW)}</div>
+      <div class="kpi-delta ${chgCls}">${chgArrow} ${Math.abs(chgPct).toFixed(2)}% 전월말 대비</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">기준월</div>
+      <div class="kpi-val">25년 ${MONTHS_2025[hist25SelectedMonth]}</div>
+      <div class="kpi-sub">${loaded.length}개 법인 데이터</div>
+      <div class="kpi-delta flat">— ${loaded.map(d=>d.flag).join(' ')}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">전월말 대비 변동</div>
+      <div class="kpi-val ${chgCls}">${chg>=0?'+':''}${fmtKrw(chg)}</div>
+      <div class="kpi-sub">${chg>=0?'+':''}${fmtKrw(chg)}</div>
+      <div class="kpi-delta ${chgCls}">${chgArrow} ${chg>=0?'증가':'감소'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">최대 잔액 법인</div>
+      <div class="kpi-val">${biggest?.flag||''} ${biggest?.name||'—'}</div>
+      <div class="kpi-sub">${biggest?fmtKrw(biggest.balanceKRW):''}</div>
+      <div class="kpi-delta flat">— ${biggest?biggest.currency+' '+fmtLocal(biggest.balance):''}</div>
+    </div>`;
+  const td = document.getElementById('hist25TblDate');
+  if (td) td.textContent = `2025년 ${MONTHS_2025[hist25SelectedMonth]} 기준`;
+}
+
+function renderHist25SubCards(loaded) {
+  const grid = document.getElementById('hist25SubGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const loadedMap = Object.fromEntries(loaded.map(d=>[d.subId,d]));
+  SUBSIDIARIES.forEach((sub, si) => {
+    const d = loadedMap[sub.id];
+    const color = COLORS[si % COLORS.length];
+    const card = document.createElement('div');
+    card.className = 'sub-card' + (d?'':' pending') + (hist25SelectedSub===sub.id?' active':'');
+    card.style.animationDelay = (si*0.04)+'s';
+    if (!d) {
+      card.innerHTML = `
+        <div class="sub-card-top">
+          <div class="sub-id"><span class="sub-flag2">${sub.flag}</span>
+            <div><div class="sub-name2">${sub.name}</div><div class="sub-country2">${sub.nameEn}</div></div>
+          </div><span class="sub-cur">${sub.currency}</span>
+        </div>
+        <div class="pending-overlay"><div class="p-icon">📭</div><div class="p-text">데이터 없음</div></div>`;
+    } else {
+      const chg = d.balance - d.prevMonthBal;
+      const pct = d.prevMonthBal ? chg/d.prevMonthBal*100 : 0;
+      const chipCls = pct>0.01?'chip-up':pct<-0.01?'chip-down':'chip-flat';
+      const arrow = pct>0.01?'▲':pct<-0.01?'▼':'—';
+      const spark = buildSparkSVG(d.series.filter(v=>v), color);
+      card.innerHTML = `
+        <div class="sub-card-top">
+          <div class="sub-id"><span class="sub-flag2">${d.flag}</span>
+            <div><div class="sub-name2">${d.name}</div><div class="sub-country2">${sub.nameEn}</div></div>
+          </div><span class="sub-cur">${d.currency}</span>
+        </div>
+        <div class="sub-bal">
+          <div class="sub-bal-local">${fmtLocal(d.balance)} <span style="font-size:12px;color:var(--muted)">${d.currency}</span></div>
+          <div class="sub-bal-krw">≈ ${fmtKrw(d.balanceKRW)}</div>
+        </div>
+        <div class="sub-chip ${chipCls}">${arrow} ${Math.abs(pct).toFixed(2)}% &nbsp;|&nbsp; ${chg>=0?'+':''}${fmtLocal(chg)} ${d.currency}</div>
+        <div class="card-date-tag fresh">2025년 ${MONTHS_2025[hist25SelectedMonth]} 말 기준</div>
+        <div class="sparkline-wrap">${spark}</div>`;
+      card.onclick = () => selectHist25Sub(sub.id);
+    }
+    grid.appendChild(card);
+  });
+}
+
+
+function renderHist25Table(loaded) {
+  const tbody = document.getElementById('hist25TblBody');
+  if (!tbody) return;
+  const totalKRW=loaded.reduce((s,d)=>s+d.balanceKRW,0);
+  const totalPrevKRW=loaded.reduce((s,d)=>s+(d.prevMonthBal*(d.prevMonthFx||d.fx)),0);
+  const loadedMap=Object.fromEntries(loaded.map(d=>[d.subId,d]));
+  const rows = SUBSIDIARIES.map(sub => {
+    const d=loadedMap[sub.id];
+    if (!d) return `<tr style="opacity:0.3"><td><div class="cell-flag-name">${sub.flag} ${sub.name}</div></td>
+      <td class="cell-mono" style="color:var(--cyan)">${sub.currency}</td>
+      <td colspan="5" style="color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace">— 데이터 없음 —</td>
+      <td class="cell-asof asof-none">—</td></tr>`;
+    const chg=d.balance-d.prevMonthBal, pct=d.prevMonthBal?chg/d.prevMonthBal*100:0;
+    const ratio=totalKRW?d.balanceKRW/totalKRW*100:0;
+    const pctCls=pct>0?'up':pct<0?'down':'flat';
+    return `<tr>
+      <td><div class="cell-flag-name">${d.flag} ${d.name}</div></td>
+      <td class="cell-mono" style="color:var(--cyan)">${d.currency}</td>
+      <td class="cell-right cell-mono">${fmtLocal(d.prevMonthBal)}</td>
+      <td class="cell-right cell-mono">${fmtLocal(d.balance)}</td>
+      <td class="cell-right cell-mono" style="color:var(--cyan)">${fmtKrw(d.balanceKRW)}</td>
+      <td class="cell-right cell-mono ${pctCls}">${pct>=0?'+':''}${pct.toFixed(2)}%</td>
+      <td><div class="bar-row"><div class="bar-bg"><div class="bar-fill" style="width:${ratio.toFixed(1)}%"></div></div><span class="cell-mono" style="font-size:10px;color:var(--muted);min-width:36px">${ratio.toFixed(1)}%</span></div></td>
+      <td class="cell-asof asof-fresh2">25년 ${MONTHS_2025[hist25SelectedMonth]}</td>
+    </tr>`;
+  }).join('');
+  const totalChg=totalKRW-totalPrevKRW, totalPct=totalPrevKRW?totalChg/totalPrevKRW*100:0;
+  const totalPctCls=totalPct>0?'up':totalPct<0?'down':'flat';
+  tbody.innerHTML = rows + `<tr class="tr-total">
+    <td><div class="cell-flag-name">📊 총계</div></td><td class="cell-mono">KRW</td>
+    <td class="cell-right cell-mono">—</td>
+    <td class="cell-right">—</td>
+    <td class="cell-right cell-mono" style="color:var(--cyan)">${fmtKrw(totalKRW)}</td>
+    <td class="cell-right cell-mono ${totalPctCls}">${totalPct>=0?'+':''}${totalPct.toFixed(2)}%</td>
+    <td><div class="bar-row"><div class="bar-bg"><div class="bar-fill" style="width:100%"></div></div><span class="cell-mono" style="font-size:10px;color:var(--accent)">100%</span></div></td>
+    <td class="cell-asof">—</td>
+  </tr>`;
+}
+
+function selectHist25Sub(id) {
+  hist25SelectedSub = hist25SelectedSub===id ? null : id;
+  document.querySelectorAll('#hist25SubGrid .sub-card').forEach((el,i)=>{
+    el.classList.toggle('active', SUBSIDIARIES[i]?.id===hist25SelectedSub);
+  });
+}
+function setHist25Mode(mode) {
+  hist25ChartMode=mode;
+  document.getElementById('hist25BtnLocal').classList.toggle('active',mode==='local');
+  document.getElementById('hist25BtnKRW').classList.toggle('active',mode==='krw');
+}
+
+async function saveHistData() {
+  const status = document.getElementById('histSaveStatus');
+  status.textContent = '저장 중...';
+  await saveHistToCloud();
+  status.textContent = '✅ 저장 완료!';
+  setTimeout(() => status.textContent='', 3000);
+}
+
+async function saveHistToCloud() {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/cf_hist_2025`, {
+      method: 'POST',
+      headers: {...HEADERS, 'Prefer':'resolution=merge-duplicates'},
+      body: JSON.stringify({ id: 1, data: histData }),
+    });
+    await fetch(`${SUPABASE_URL}/rest/v1/cf_hist_2025`, {
+      method: 'POST',
+      headers: {...HEADERS, 'Prefer':'resolution=merge-duplicates'},
+      body: JSON.stringify({ id: 2, data: { smbsMonthlyFx2025 } }),
+    });
+    try{ localStorage.setItem('cf_smbs_fx_2025', JSON.stringify(smbsMonthlyFx2025)); }catch(e){}
+  } catch(e) { console.log('hist save skipped:', e.message); }
+}
+
+async function loadHistFromCloud() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/cf_hist_2025?select=*&order=id.asc`, { headers: HEADERS });
+    if (!res.ok) return;
+    const rows = await res.json();
+    rows.forEach(r=>{
+      if(r.id===1 && r.data) histData = r.data;
+      if(r.id===2 && r.data && r.data.smbsMonthlyFx2025) smbsMonthlyFx2025 = r.data.smbsMonthlyFx2025;
+    });
+    if(!Object.keys(smbsMonthlyFx2025||{}).length){
+      try{
+        const saved = localStorage.getItem('cf_smbs_fx_2025');
+        if(saved){
+          const obj = JSON.parse(saved);
+          if(obj && typeof obj==='object') smbsMonthlyFx2025 = obj;
+        }
+      }catch(e){}
+    }
+    if (rows.length) renderAll25();
+  } catch(e) { console.log('hist load skipped:', e.message); }
+}
+
+// fetchHist25FX: 이제 하드코딩 데이터 사용 (smbsMonthlyFx2025)
+// 12월 환율을 histFxRates에 복사해 FX 스트립에 표시
+async function fetchHist25FX(startYmd, endYmd) {
+  Object.entries(smbsMonthlyFx2025).forEach(([subId, arr]) => {
+    histFxRates[subId] = arr[11]; // 12월 환율 → FX 스트립 기본값
+  });
+  console.log('월별 환율 하드코딩 적용 완료 (출처: x-rates.com 2025년 월별 평균)');
+}
+
+// ═══════════════════════════════════════════
+// FX RATE — 한국은행 API (26년 1월 1일 ~ 기준일 평균)
+// ═══════════════════════════════════════════
+const BOK_API_KEY = ''; // 필요시 한국은행 API 키 입력
+const FX_CACHE = {}; // currency → avgRate
+
+async function fetchAvgFX(asOfDate) {
+  // asOfDate: 'YYYY-MM-DD'
+  const currencies = {
+    JPY: 'JPY(100)', CNY: 'CNY', SGD: 'SGD', MYR: 'MYR',
+    USD: 'USD', EUR: 'EUR', BRL: 'BRL', INR: 'INR', RUB: 'RUB'
+  };
+  const startDate = '20260101';
+  const endDate = (asOfDate||'').replace(/-/g,'') || startDate;
+
+  // 한국은행 ECOS API (무료, 인증키 없어도 일부 조회 가능)
+  const results = {};
+  for (const [code, bokCode] of Object.entries(currencies)) {
+    try {
+      const url = `https://ecos.bok.or.kr/api/StatisticSearch/${BOK_API_KEY||'sample'}/json/kr/1/100/731Y001/DD/${startDate}/${endDate}/${bokCode}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const items = data?.StatisticSearch?.row || [];
+      if (items.length) {
+        const vals = items.map(r => parseFloat(r.DATA_VALUE)).filter(v => !isNaN(v));
+        if (vals.length) {
+          let avg = vals.reduce((a,b)=>a+b,0) / vals.length;
+          // JPY는 100엔 기준으로 제공되므로 /100
+          if (code === 'JPY') avg = avg / 100;
+          results[code] = avg;
+          FX_CACHE[code] = avg;
+        }
+      }
+    } catch(e) { /* API 실패 시 기존 fx 유지 */ }
+  }
+  // 조회된 환율로 SUBSIDIARIES 업데이트
+  if (Object.keys(results).length > 0) {
+    SUBSIDIARIES.forEach(sub => {
+      if (results[sub.currency]) sub.fx = results[sub.currency];
+    });
+    // FX 스트립 업데이트
+    const strip = document.getElementById('fxStrip');
+    if (strip) {
+      strip.querySelectorAll('.fx-item').forEach(item => {
+        const lbl = item.querySelector('.fx-label')?.textContent;
+        const sub = SUBSIDIARIES.find(s => `${s.currency}/KRW` === lbl || item.textContent.includes(s.currency));
+        if (sub && results[sub.currency]) {
+          const valEl = item.querySelector('.fx-val');
+          if (valEl) valEl.textContent = sub.fx.toLocaleString('ko-KR', {minimumFractionDigits:2,maximumFractionDigits:4});
+        }
+      });
+    }
+  }
+  return results;
+}
+
+// ═══════════════════════════════════════════
+// 트렌드 차트 (25년 월별 + 26년 주별 통합)
+// ═══════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+const SUPABASE_URL = 'https://srhggbtdjigtagduruxx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNyaGdnYnRkamlndGFnZHVydXh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMDAwNzEsImV4cCI6MjA4ODg3NjA3MX0.IYTQ5hH0EJgLaMS9pF_-ntjtNLcSbarDZaV6-J5V94k';
+const API = `${SUPABASE_URL}/rest/v1/cf_dashboard`;
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+};
+
+// ── 저장 ──────────────────────────────────
+async function saveToCloud() {
+  const loaded = Object.values(subData);
+  if (!loaded.length) return;
+
+  const btn = document.getElementById('saveBtn');
+  const status = document.getElementById('saveStatus');
+  btn.disabled = true;
+  btn.textContent = '저장 중...';
+  status.className = 'save-status loading';
+  status.textContent = '⏳ 서버에 저장 중...';
+
+  try {
+    // serialize (함수 제거, 직렬화 가능한 데이터만)
+    const payload = {};
+    for (const [id, d] of Object.entries(subData)) {
+      payload[id] = {
+        subId: d.subId, name: d.name, flag: d.flag,
+        currency: d.currency, fx: d.fx,
+        asOf: d.asOf, asOfDay: d.asOfDay,
+        year: d.year, month: d.month,
+        prevMonthBal: d.prevMonthBal,
+        balance: d.balance, balanceKRW: d.balanceKRW,
+        daily: d.daily, series: d.series, labels: d.labels,
+        filename: d.filename,
+        isBalanceDetails: d.isBalanceDetails || false,
+      };
+    }
+
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({ data: payload }),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    btn.textContent = '☁️ 저장 & 공유';
+    btn.disabled = false;
+    status.className = 'save-status ok';
+    status.textContent = '✅ 저장 완료! 임원들이 바로 볼 수 있습니다.';
+    setTimeout(() => status.textContent = '', 4000);
+
+    // 배너 업데이트
+    showCloudBanner('☁️ 방금 저장됨 — 임원들이 링크 접속 시 자동으로 보입니다', new Date().toLocaleString('ko-KR'));
+
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '☁️ 저장 & 공유';
+    status.className = 'save-status err';
+    status.textContent = '❌ 저장 실패: ' + e.message;
+  }
+}
+
+// ── 불러오기 ──────────────────────────────
+async function loadFromCloud() {
+  try {
+    const res = await fetch(
+      `${API}?select=*&order=saved_at.desc&limit=1`,
+      { headers: HEADERS }
+    );
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!rows.length || !rows[0].data) return;
+
+    const saved = rows[0].data;
+    const savedAt = new Date(rows[0].saved_at).toLocaleString('ko-KR');
+
+    // subData에 복원
+    for (const [id, d] of Object.entries(saved)) {
+      subData[id] = d;
+      // 슬롯 UI 업데이트
+      const sub = SUBSIDIARIES.find(s => s.id === id);
+      if (!sub) continue;
+      const slot = document.getElementById('slot-' + id);
+      const statusEl = document.getElementById('slot-status-' + id);
+      if (slot && statusEl) {
+        slot.classList.add('loaded');
+        statusEl.className = 'slot-status ok';
+        statusEl.textContent = `✓ ${fmtLocal(d.balance)} ${d.currency}`;
+        let badge = slot.querySelector('.slot-date-badge');
+        if (!badge) { badge = document.createElement('div'); badge.className = 'slot-date-badge'; slot.appendChild(badge); }
+        badge.textContent = d.asOf;
+        let clr = slot.querySelector('.slot-clear');
+        if (clr) clr.remove();
+        const clearBtn = document.createElement('div');
+        clearBtn.className = 'slot-clear'; clearBtn.innerHTML = '✕'; clearBtn.title = '삭제';
+        clearBtn.onclick = ev => { ev.stopPropagation(); clearSlot(id); };
+        slot.appendChild(clearBtn);
+      }
+    }
+
+    renderAll();
+    showCloudBanner(`☁️ 최신 저장 데이터를 불러왔습니다`, savedAt);
+
+  } catch(e) {
+    console.log('Cloud load skipped:', e.message);
+  }
+}
+
+function showCloudBanner(text, dateStr) {
+  const banner = document.getElementById('cloudBanner');
+  document.getElementById('cloudBannerText').textContent = text;
+  document.getElementById('cloudBannerDate').textContent = dateStr + ' 저장';
+  banner.classList.add('show');
+}
+
+// renderAll 이후 저장 버튼 표시 여부 제어
+// (renderAll 자체를 override하지 않고 별도 함수로 처리)
+function updateSaveBtn() {
+  const loaded = Object.values(subData);
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) saveBtn.style.display = loaded.length ? 'inline-block' : 'none';
+}
+
+// ═══════════════════════════════════════════
+// Init
+initSlots();
+loadFromCloud();       // 26년 주별 데이터 로드
+loadHistFromCloud();   // 25년 월별 데이터 로드
+
+</script>
+</body>
+</html>
